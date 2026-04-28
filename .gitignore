@@ -1,4 +1,15 @@
+# Python
 venv/
 __pycache__/
-db.sqlite3
+*.pyc
+*.pyo
+
+# Django
+*.sqlite3
+*.log
+
+# VS Code
 .vscode/
+
+# Variables de entorno
+.env
