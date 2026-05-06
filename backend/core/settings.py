@@ -20,7 +20,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'apps.usuarios',
-    # 'apps.clases',
+    'apps.clases',
     'apps.reservas',
     'apps.pagos',
     'apps.notificaciones',
