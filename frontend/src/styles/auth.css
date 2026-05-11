@@ -1,0 +1,218 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  box-shadow: var(--sombra-card);
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-card--wide  { max-width: 620px; }
+
+.auth-card--success {
+  text-align: center;
+  padding: 60px 36px;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.logo-k {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--verde);
+  letter-spacing: -1px;
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--texto-titulo);
+  letter-spacing: 3px;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--texto-suave);
+  margin-bottom: 28px;
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--texto-titulo);
+  margin-bottom: 20px;
+}
+
+.auth-hint {
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 500px) {
+  .field-row { grid-template-columns: 1fr; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texto);
+}
+
+.field input {
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid var(--borde-input);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  color: var(--texto-titulo);
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: var(--borde-focus);
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
+}
+
+.field input::placeholder { color: #c3c8d0; }
+
+.input-codigo {
+  text-align: center;
+  font-size: 22px !important;
+  letter-spacing: 10px;
+  font-weight: 600;
+}
+
+.field-error {
+  font-size: 12px;
+  color: var(--error);
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.auth-error {
+  font-size: 13px;
+  color: var(--error);
+  background: var(--error-bg);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.btn-primary {
+  height: 44px;
+  background: var(--verde);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: var(--sombra-btn);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover:not(:disabled) { background: var(--verde-hover); }
+.btn-primary:active:not(:disabled) { transform: scale(0.99); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-ghost {
+  height: 40px;
+  background: transparent;
+  color: var(--texto-suave);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  border: 1.5px solid var(--borde-input);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-ghost:hover {
+  border-color: var(--verde-claro);
+  color: var(--verde);
+}
+
+.auth-link {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--texto-suave);
+  text-align: center;
+}
+
+.auth-link a {
+  color: var(--verde);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-link a:hover { text-decoration: underline; }
+
+.success-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--verde-bg);
+  color: var(--verde);
+  font-size: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  border: 2px solid rgba(46, 125, 50, 0.2);
+}
+
+.badge-2fa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--amarillo);
+  background: var(--amarillo-bg);
+  border: 1px solid rgba(249, 168, 37, 0.3);
+  border-radius: 99px;
+  padding: 3px 10px;
+  margin-bottom: 12px;
+}
