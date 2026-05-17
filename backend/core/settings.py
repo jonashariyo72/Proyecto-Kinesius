@@ -4,6 +4,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-wqxmw*f9eu-%s#g&%a6_!nfkkn!fm0g1p&*v&xxz5@6eet8m4c'
 
+AUTH_USER_MODEL = 'usuarios.Usuario'
+
 DEBUG = True
 
 ALLOWED_HOSTS = []
@@ -103,9 +105,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email (para notificaciones)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_PORT = 2525
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'info@kinesius.com.ar'
-EMAIL_HOST_PASSWORD = ''   # configurar con variable de entorno
-AUTH_USER_MODEL = 'usuarios.Usuario'
+EMAIL_HOST_USER = 'ef1742937c6eb7'
+EMAIL_HOST_PASSWORD = 'db6810c6e2ef66'

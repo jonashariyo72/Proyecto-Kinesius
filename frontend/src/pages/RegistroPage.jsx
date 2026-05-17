@@ -17,8 +17,14 @@ function validarForm(form) {
     errores.apellido = 'El apellido es obligatorio.'
   if (!/^\d{7,8}$/.test(form.dni))
     errores.dni = 'Debe tener 7 u 8 dígitos numéricos.'
-  if (!form.email)
+  if (!form.email) {
     errores.email = 'El correo es obligatorio.'
+  } else {
+    const dominiosPermitidos = ['gmail.com', 'outlook.com', 'hotmail.com', 'unlp.edu.ar']
+    const dominio = form.email.split('@')[1]?.toLowerCase()
+    if (!dominiosPermitidos.includes(dominio))
+      errores.email = 'Solo se permiten correos de Gmail, Outlook, Hotmail o UNLP.'
+  }
   if (form.password.length < 8 || form.password.length > 16)
     errores.password = 'Debe tener entre 8 y 16 caracteres.'
   else if (!/[A-Z]/.test(form.password))

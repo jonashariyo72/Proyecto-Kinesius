@@ -50,6 +50,14 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         validar_email_formato(value)
+        
+        dominios_permitidos = ['gmail.com', 'outlook.com', 'hotmail.com', 'unlp.edu.ar']
+        dominio = value.split('@')[-1].lower()
+        if dominio not in dominios_permitidos:
+            raise serializers.ValidationError(
+                'Solo se permiten correos de Gmail, Outlook, Hotmail o UNLP (@unlp.edu.ar).'
+            )
+        
         if Usuario.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 'Error al registrar el nuevo usuario por correo electrónico ya existente en el sistema.'
