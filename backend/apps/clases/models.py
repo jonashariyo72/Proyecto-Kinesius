@@ -46,7 +46,7 @@ class Clase(models.Model):
 
     def cupos_disponibles(self):
         """Retorna cuántos lugares quedan libres en la clase."""
-        reservas_activas = self.reservas.filter(estado='confirmada').count()
+        reservas_activas = self.reservas.filter(estado='CONFIRMADA').count()
         return self.capacidad_maxima - reservas_activas
 
     def tiene_cupo(self):

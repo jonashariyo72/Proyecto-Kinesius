@@ -1,5 +1,6 @@
 from django.db import models
 from apps.usuarios.models import Cliente
+from django.utils import timezone
 
 
 class Reserva(models.Model):
@@ -30,6 +31,25 @@ class Reserva(models.Model):
     )
 
     asistio = models.BooleanField(default=False)
+
+    fecha_reserva = models.DateTimeField(default=timezone.now)
+
+    PAGO_CHOICES = (
+        ('TOTAL', 'Pago Total'),
+        ('SENIA', 'Seña'),
+    )
+
+    tipo_pago = models.CharField(
+        max_length=10,
+        choices=PAGO_CHOICES,
+        default='TOTAL'
+    )
+
+    saldo_a_favor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
 
 
 class ListaEspera(models.Model):
