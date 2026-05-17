@@ -22,23 +22,23 @@ export const loginUsuario = (email, password) =>
 export const verificar2FA = (email, codigo) =>
   api.post('/verificar-2fa/', { email, codigo })
 
-// ─── Manejo de sesión en localStorage ────────────────────────────────────────
+// ─── Manejo de sesión en sessionStorage ────────────────────────────────────────
 
 export const guardarSesion = (access, refresh, rol) => {
-  localStorage.setItem('access', access)
-  localStorage.setItem('refresh', refresh)
-  localStorage.setItem('rol', rol)
+  sessionStorage.setItem('access', access)
+  sessionStorage.setItem('refresh', refresh)
+  sessionStorage.setItem('rol', rol)
 }
 
 export const limpiarSesion = () => {
-  localStorage.removeItem('access')
-  localStorage.removeItem('refresh')
-  localStorage.removeItem('rol')
+  sessionStorage.removeItem('access')
+  sessionStorage.removeItem('refresh')
+  sessionStorage.removeItem('rol')
 }
 
 export const getSesion = () => ({
-  access:      localStorage.getItem('access'),
-  refresh:     localStorage.getItem('refresh'),
-  rol:         localStorage.getItem('rol'),
-  autenticado: !!localStorage.getItem('access'),
+  access:      sessionStorage.getItem('access'),
+  refresh:     sessionStorage.getItem('refresh'),
+  rol:         sessionStorage.getItem('rol'),
+  autenticado: !!sessionStorage.getItem('access'),
 })

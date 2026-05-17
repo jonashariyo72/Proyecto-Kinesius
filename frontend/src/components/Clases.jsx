@@ -15,61 +15,155 @@ const DIAS = [
   { value: 'viernes',   label: 'Viernes' },
 ]
 
+const SALAS = [
+  { id: 1,  capacidad: 12 },
+  { id: 2,  capacidad: 15 },
+  { id: 3,  capacidad: 10 },
+  { id: 4,  capacidad: 18 },
+  { id: 5,  capacidad: 14 },
+  { id: 6,  capacidad: 20 },
+  { id: 7,  capacidad: 11 },
+  { id: 8,  capacidad: 16 },
+  { id: 9,  capacidad: 13 },
+  { id: 10, capacidad: 19 },
+]
+
+const HORARIOS = [
+  '08:00', '09:00', '10:00', '11:00', '12:00',
+  '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
+]
+
 const FORM_VACIO = {
-  tipo: 'tren_inferior', dia: 'lunes',
-  hora_inicio: '', capacidad_maxima: '', precio: '', descripcion: '',
+  tipo: '',
+  dia: '',
+  hora_inicio: '',
+  sala: '',
+  capacidad_maxima: '',
+  kinesiologo: '',
+  precio: 15000,
+  descripcion: '',
 }
 
 export default function Clases() {
-  const [clases, setClases]       = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState('')
-  const [filtroDia, setFiltroDia] = useState('')
-  const [modal, setModal]         = useState(false)
-  const [form, setForm]           = useState(FORM_VACIO)
-  const [editando, setEditando]   = useState(null)
-  const [guardando, setGuardando] = useState(false)
+  const [clases, setClases]             = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState('')
+  const [filtroDia, setFiltroDia]       = useState('')
+  const [modal, setModal]               = useState(false)
+  const [form, setForm]                 = useState(FORM_VACIO)
+  const [editando, setEditando]         = useState(null)
+  const [guardando, setGuardando]       = useState(false)
+  const [kinesiologos, setKinesiologos] = useState([])
+  const [formError, setFormError]       = useState('')
+
+  const formularioCompleto =
+    form.tipo &&
+    form.dia &&
+    form.hora_inicio &&
+    form.sala &&
+    form.kinesiologo
 
   const cargar = async () => {
     setLoading(true)
     setError('')
+
     try {
       const params = filtroDia ? `?dia=${filtroDia}` : ''
+
       const res = await api.get(`/clases/${params}`)
-      const data = Array.isArray(res.data) ? res.data : res.data.results ?? []
+
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data.results ?? []
+
       setClases(data)
+
     } catch {
       setError('No se pudieron cargar las clases.')
+
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { cargar() }, [filtroDia])
+  useEffect(() => {
+    cargar()
+  }, [filtroDia])
+
+  useEffect(() => {
+    api.get('/usuarios/kinesiologos/')
+      .then(res => {
+
+        const data = Array.isArray(res.data)
+          ? res.data
+          : res.data.results ?? []
+
+        setKinesiologos(data)
+
+      })
+      .catch(() => {
+        console.error('No se pudieron cargar los kinesiólogos')
+      })
+  }, [])
 
   const abrirCrear = () => {
     setEditando(null)
     setForm(FORM_VACIO)
+    setFormError('')
     setModal(true)
   }
 
   const abrirEditar = (c) => {
+    console.log('sala:', c.sala, typeof c.sala)
     setEditando(c.id)
-    setForm({ tipo: c.tipo, dia: c.dia, hora_inicio: c.hora_inicio, capacidad_maxima: c.capacidad_maxima, precio: c.precio, descripcion: c.descripcion || '' })
+    setFormError('')
+
+    setForm({
+      tipo: c.tipo,
+      dia: c.dia,
+      hora_inicio: c.hora_inicio?.slice(0, 5),
+      sala: c.sala ? String(c.sala) : '',
+      capacidad_maxima: c.capacidad_maxima,
+      kinesiologo: c.kinesiologo || '',
+      precio: 15000,
+      descripcion: c.descripcion || '',
+    })
+
     setModal(true)
   }
 
   const guardar = async (e) => {
     e.preventDefault()
+
+    if (!form.tipo || !form.dia || !form.hora_inicio || !form.sala || !form.kinesiologo) {
+      alert('Por favor completá todos los campos antes de crear la clase.')
+      return
+    }
+
     setGuardando(true)
+
     try {
+      const payload = {
+        tipo: form.tipo,
+        dia: form.dia,
+        hora_inicio: form.hora_inicio,
+        capacidad_maxima: form.capacidad_maxima,
+        precio: 15000,
+        kinesiologo: form.kinesiologo,
+        descripcion: form.descripcion,
+        sala: parseInt(form.sala),
+      }
+
       editando
-        ? await api.patch(`/clases/${editando}/`, form)
-        : await api.post('/clases/', form)
+        ? await api.patch(`/clases/${editando}/`, payload)
+        : await api.post('/clases/', payload)
+
       setModal(false)
       cargar()
+
     } catch (err) {
       alert(JSON.stringify(err.response?.data || 'Error al guardar'))
+
     } finally {
       setGuardando(false)
     }
@@ -77,9 +171,11 @@ export default function Clases() {
 
   const desactivar = async (id) => {
     if (!confirm('¿Desactivar esta clase?')) return
+
     try {
       await api.delete(`/clases/${id}/`)
       cargar()
+
     } catch {
       alert('No se pudo desactivar.')
     }
@@ -90,41 +186,123 @@ export default function Clases() {
       <div style={s.topBar}>
         <div>
           <h1 style={s.titulo}>Clases</h1>
-          <p style={s.sub}>{clases.length} clase{clases.length !== 1 ? 's' : ''}</p>
+
+          <p style={s.sub}>
+            {clases.length} clase{clases.length !== 1 ? 's' : ''}
+          </p>
         </div>
+
         <div style={s.topRight}>
-          <select style={s.select} value={filtroDia} onChange={e => setFiltroDia(e.target.value)}>
+          <select
+            style={s.select}
+            value={filtroDia}
+            onChange={e => setFiltroDia(e.target.value)}
+          >
             <option value="">Todos los días</option>
-            {DIAS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+
+            {DIAS.map(d => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
           </select>
-          <button style={s.btnVerde} onClick={abrirCrear}>+ Nueva clase</button>
+
+          <button
+            style={{
+              ...s.btnVerde,
+              cursor: 'pointer'
+            }}
+            onClick={abrirCrear}
+          >
+            + Nueva clase
+          </button>
         </div>
       </div>
 
-      {loading && <p style={s.estado}>Cargando...</p>}
-      {error   && <p style={s.errorTxt}>{error}</p>}
-      {!loading && !error && clases.length === 0 && <p style={s.estado}>No hay clases registradas.</p>}
+      {loading && (
+        <p style={s.estado}>Cargando...</p>
+      )}
+
+      {error && (
+        <p style={s.errorTxt}>{error}</p>
+      )}
+
+      {!loading && !error && clases.length === 0 && (
+        <p style={s.estado}>No hay clases registradas.</p>
+      )}
 
       <div style={s.grid}>
         {clases.map(c => (
-          <div key={c.id} style={{...s.card, opacity: c.activa ? 1 : 0.5}}>
+          <div
+            key={c.id}
+            style={{
+              ...s.card,
+              opacity: c.activa ? 1 : 0.5
+            }}
+          >
             <div style={s.cardTop}>
-              <span style={s.badge}>{TIPOS.find(t => t.value === c.tipo)?.label}</span>
-              <span style={{...s.cupo, color: c.tiene_cupo ? '#2d6a2d' : '#c0392b'}}>
-                {c.cupos_disponibles}/{c.capacidad_maxima} cupos
+              <span style={s.badge}>
+                {TIPOS.find(t => t.value === c.tipo)?.label}
+              </span>
+
+              <span
+                style={{
+                  ...s.cupo,
+                  color: c.tiene_cupo ? '#2d6a2d' : '#c0392b'
+                }}
+              >
+                {c.capacidad_maxima - c.cupos_disponibles}/{c.capacidad_maxima} inscriptos
               </span>
             </div>
+
             <div style={s.cardMid}>
-              <span style={s.dia}>{DIAS.find(d => d.value === c.dia)?.label}</span>
-              <span style={s.hora}>{c.hora_inicio?.slice(0, 5)} hs</span>
+              <span style={s.dia}>
+                {DIAS.find(d => d.value === c.dia)?.label}
+              </span>
+
+              <span style={s.hora}>
+                {c.hora_inicio?.slice(0, 5)} hs
+              </span>
             </div>
-            {c.kinesiologo_nombre && <p style={s.kine}>👤 {c.kinesiologo_nombre}</p>}
-            <p style={s.precio}>$ {parseFloat(c.precio).toLocaleString('es-AR')}</p>
-            {!c.tiene_cupo && <span style={s.llena}>SIN CUPO</span>}
-            {!c.activa    && <span style={s.inactiva}>INACTIVA</span>}
+
+            {c.kinesiologo_nombre && (
+              <p style={s.kine}>
+                👤 {c.kinesiologo_nombre}
+              </p>
+            )}
+
+            {c.sala && <p style={s.kine}>🚪 Sala {c.sala}</p>}
+
+            <p style={s.precio}>
+              $ {parseFloat(c.precio).toLocaleString('es-AR')}
+            </p>
+
+            {!c.tiene_cupo && (
+              <span style={s.llena}>
+                SIN CUPO
+              </span>
+            )}
+
+            {!c.activa && (
+              <span style={s.inactiva}>
+                INACTIVA
+              </span>
+            )}
+
             <div style={s.acciones}>
-              <button style={s.btnEditar}   onClick={() => abrirEditar(c)}>Editar</button>
-              <button style={s.btnEliminar} onClick={() => desactivar(c.id)}>Desactivar</button>
+              <button
+                style={s.btnEditar}
+                onClick={() => abrirEditar(c)}
+              >
+                Editar
+              </button>
+
+              <button
+                style={s.btnEliminar}
+                onClick={() => desactivar(c.id)}
+              >
+                Desactivar
+              </button>
             </div>
           </div>
         ))}
@@ -133,42 +311,193 @@ export default function Clases() {
       {modal && (
         <div style={s.overlay}>
           <div style={s.modal}>
-            <h2 style={s.modalTitulo}>{editando ? 'Editar clase' : 'Nueva clase'}</h2>
-            <form onSubmit={guardar} style={s.formGrid}>
+            <h2 style={s.modalTitulo}>
+              {editando ? 'Editar clase' : 'Nueva clase'}
+            </h2>
+
+            {formError && (
+              <p style={s.errorTxt}>{formError}</p>
+            )}
+
+            <form
+              onSubmit={guardar}
+              style={s.formGrid}
+            >
+
               <div style={s.campo}>
                 <label style={s.label}>Tipo</label>
-                <select style={s.input} value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}>
-                  {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+
+                <select
+                  style={s.input}
+                  value={form.tipo}
+                  onChange={e => setForm({...form, tipo: e.target.value})}
+                >
+                  <option value="">Sin asignar</option>
+
+                  {TIPOS.map(t => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
                 </select>
               </div>
+
               <div style={s.campo}>
                 <label style={s.label}>Día</label>
-                <select style={s.input} value={form.dia} onChange={e => setForm({...form, dia: e.target.value})}>
-                  {DIAS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+
+                <select
+                  style={s.input}
+                  value={form.dia}
+                  onChange={e => setForm({...form, dia: e.target.value})}
+                >
+                  <option value="">Sin asignar</option>
+
+                  {DIAS.map(d => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              <div style={s.campo}>
+                <label style={s.label}>Sala</label>
+
+                <select
+                  style={s.input}
+                  value={form.sala}
+                  onChange={e => {
+                    const sala = SALAS.find(
+                      sa => sa.id === parseInt(e.target.value)
+                    )
+
+                    setForm({
+                      ...form,
+                      sala: sala ? sala.id : '',
+                      capacidad_maxima: sala ? sala.capacidad : '',
+                    })
+                  }}
+                >
+                  <option value="">Sin asignar</option>
+
+                  {SALAS.map(sa => (
+                    <option key={sa.id} value={String(sa.id)}>
+                      Sala {sa.id} — {sa.capacidad} personas
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div style={s.campo}>
                 <label style={s.label}>Hora de inicio</label>
-                <input style={s.input} type="time" value={form.hora_inicio} onChange={e => setForm({...form, hora_inicio: e.target.value})} required />
+
+                <select
+                  style={s.input}
+                  value={form.hora_inicio}
+                  onChange={e => setForm({...form, hora_inicio: e.target.value})}
+                >
+                  <option value="">Sin asignar</option>
+
+                  {HORARIOS.map(h => (
+                    <option key={h} value={h}>
+                      {h} hs
+                    </option>
+                  ))}
+                </select>
               </div>
+
               <div style={s.campo}>
-                <label style={s.label}>Capacidad máxima</label>
-                <input style={s.input} type="number" min="1" value={form.capacidad_maxima} onChange={e => setForm({...form, capacidad_maxima: e.target.value})} required />
+                <label style={s.label}>Kinesiólogo</label>
+
+                <select
+                  style={s.input}
+                  value={form.kinesiologo}
+                  onChange={e => setForm({...form, kinesiologo: e.target.value})}
+                >
+                  <option value="">Sin asignar</option>
+
+                  {kinesiologos.map(k => (
+                    <option key={k.id} value={k.id}>
+                      {k.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
+
               <div style={s.campo}>
                 <label style={s.label}>Precio ($)</label>
-                <input style={s.input} type="number" min="0" step="0.01" value={form.precio} onChange={e => setForm({...form, precio: e.target.value})} required />
+
+                <input
+                  style={{
+                    ...s.input,
+                    background: '#f5f5f5',
+                    color: '#888'
+                  }}
+                  type="number"
+                  value={15000}
+                  readOnly
+                />
               </div>
-              <div style={{...s.campo, gridColumn: '1 / -1'}}>
-                <label style={s.label}>Descripción (opcional)</label>
-                <textarea style={{...s.input, height: 70, resize: 'vertical'}} value={form.descripcion} onChange={e => setForm({...form, descripcion: e.target.value})} />
+
+              <div
+                style={{
+                  ...s.campo,
+                  gridColumn: '1 / -1'
+                }}
+              >
+                <label style={s.label}>
+                  Descripción (opcional)
+                </label>
+
+                <textarea
+                  style={{
+                    ...s.input,
+                    height: 70,
+                    resize: 'vertical'
+                  }}
+                  value={form.descripcion}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      descripcion: e.target.value
+                    })
+                  }
+                />
               </div>
-              <div style={{...s.acciones, gridColumn: '1 / -1', marginTop: 4}}>
-                <button type="button" style={s.btnCancelar} onClick={() => setModal(false)}>Cancelar</button>
-                <button type="submit" style={s.btnVerde} disabled={guardando}>
-                  {guardando ? 'Guardando...' : editando ? 'Guardar cambios' : 'Crear clase'}
+
+              <div
+                style={{
+                  ...s.acciones,
+                  gridColumn: '1 / -1',
+                  marginTop: 4
+                }}
+              >
+                <button
+                  type="button"
+                  style={s.btnCancelar}
+                  onClick={() => setModal(false)}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  style={{
+                    ...s.btnVerde,
+                    opacity: formularioCompleto ? 1 : 0.5,
+                    cursor: formularioCompleto ? 'pointer' : 'not-allowed',
+                    userSelect: 'none'
+                  }}
+                  disabled={!formularioCompleto || guardando}
+                >
+                  {guardando
+                    ? 'Guardando...'
+                    : editando
+                    ? 'Guardar cambios'
+                    : 'Crear clase'}
                 </button>
               </div>
+
             </form>
           </div>
         </div>
@@ -178,35 +507,241 @@ export default function Clases() {
 }
 
 const s = {
-  topBar:     { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: 12 },
-  topRight:   { display: 'flex', gap: 10, alignItems: 'center' },
-  titulo:     { fontSize: 22, fontWeight: 700, color: '#1a1a1a', margin: 0 },
-  sub:        { fontSize: 13, color: '#888', margin: '4px 0 0' },
-  select:     { padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 },
-  btnVerde:   { padding: '9px 18px', borderRadius: 8, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  estado:     { textAlign: 'center', color: '#aaa', padding: '3rem' },
-  errorTxt:   { textAlign: 'center', color: '#c0392b' },
-  grid:       { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 },
-  card:       { background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: 8 },
-  cardTop:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  badge:      { background: '#e8f5e9', color: '#2d6a2d', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20 },
-  cupo:       { fontSize: 12, fontWeight: 600 },
-  cardMid:    { display: 'flex', gap: 12, alignItems: 'baseline' },
-  dia:        { fontSize: 15, fontWeight: 600, color: '#333' },
-  hora:       { fontSize: 20, fontWeight: 700, color: '#2d6a2d' },
-  kine:       { fontSize: 13, color: '#555', margin: 0 },
-  precio:     { fontSize: 14, fontWeight: 600, color: '#c8a000', margin: 0 },
-  llena:      { fontSize: 11, fontWeight: 700, color: '#c0392b', background: '#fdecea', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
-  inactiva:   { fontSize: 11, fontWeight: 700, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
-  acciones:   { display: 'flex', gap: 8, marginTop: 4 },
-  btnEditar:  { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, cursor: 'pointer' },
-  btnEliminar:{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e74c3c', background: 'transparent', color: '#e74c3c', fontSize: 13, cursor: 'pointer' },
-  overlay:    { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal:      { background: '#fff', borderRadius: 14, padding: '2rem', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' },
-  modalTitulo:{ fontSize: 18, fontWeight: 700, margin: '0 0 1.2rem', color: '#1a1a1a' },
-  formGrid:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
-  campo:      { display: 'flex', flexDirection: 'column', gap: 5 },
-  label:      { fontSize: 13, fontWeight: 500, color: '#555' },
-  input:      { padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' },
-  btnCancelar:{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #ddd', background: 'transparent', fontSize: 14, cursor: 'pointer' },
+  topBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '1.5rem',
+    flexWrap: 'wrap',
+    gap: 12
+  },
+
+  topRight: {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'center'
+  },
+
+  titulo: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: '#1a1a1a',
+    margin: 0
+  },
+
+  sub: {
+    fontSize: 13,
+    color: '#888',
+    margin: '4px 0 0'
+  },
+
+  select: {
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #ddd',
+    fontSize: 14
+  },
+
+  btnVerde: {
+    padding: '9px 18px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#2d6a2d',
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 600,
+    transition: '0.2s',
+    cursor: 'pointer',
+    userSelect: 'none'
+  },
+
+  estado: {
+    textAlign: 'center',
+    color: '#aaa',
+    padding: '3rem'
+  },
+
+  errorTxt: {
+    color: '#c0392b',
+    fontSize: 13,
+    margin: '0 0 12px'
+  },
+
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gap: 16
+  },
+
+  card: {
+    background: '#fff',
+    borderRadius: 12,
+    border: '1px solid #e5e5e5',
+    padding: '1.2rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8
+  },
+
+  cardTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+
+  badge: {
+    background: '#e8f5e9',
+    color: '#2d6a2d',
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '3px 10px',
+    borderRadius: 20
+  },
+
+  cupo: {
+    fontSize: 12,
+    fontWeight: 600
+  },
+
+  cardMid: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'baseline'
+  },
+
+  dia: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: '#333'
+  },
+
+  hora: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#2d6a2d'
+  },
+
+  kine: {
+    fontSize: 13,
+    color: '#555',
+    margin: 0
+  },
+
+  precio: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#c8a000',
+    margin: 0
+  },
+
+  llena: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#c0392b',
+    background: '#fdecea',
+    padding: '2px 8px',
+    borderRadius: 4,
+    alignSelf: 'flex-start'
+  },
+
+  inactiva: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#888',
+    background: '#f0f0f0',
+    padding: '2px 8px',
+    borderRadius: 4,
+    alignSelf: 'flex-start'
+  },
+
+  acciones: {
+    display: 'flex',
+    gap: 8,
+    marginTop: 4
+  },
+
+  btnEditar: {
+    flex: 1,
+    padding: '7px',
+    borderRadius: 7,
+    border: '1px solid #2d6a2d',
+    background: 'transparent',
+    color: '#2d6a2d',
+    fontSize: 13,
+    cursor: 'pointer'
+  },
+
+  btnEliminar: {
+    flex: 1,
+    padding: '7px',
+    borderRadius: 7,
+    border: '1px solid #e74c3c',
+    background: 'transparent',
+    color: '#e74c3c',
+    fontSize: 13,
+    cursor: 'pointer'
+  },
+
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100
+  },
+
+  modal: {
+    background: '#fff',
+    borderRadius: 14,
+    padding: '2rem',
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  },
+
+  modalTitulo: {
+    fontSize: 18,
+    fontWeight: 700,
+    margin: '0 0 1.2rem',
+    color: '#1a1a1a'
+  },
+
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 14
+  },
+
+  campo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5
+  },
+
+  label: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#555'
+  },
+
+  input: {
+    padding: '9px 12px',
+    borderRadius: 8,
+    border: '1px solid #ddd',
+    fontSize: 14,
+    outline: 'none'
+  },
+
+  btnCancelar: {
+    flex: 1,
+    padding: '9px',
+    borderRadius: 8,
+    border: '1px solid #ddd',
+    background: 'transparent',
+    fontSize: 14,
+    cursor: 'pointer'
+  },
 }

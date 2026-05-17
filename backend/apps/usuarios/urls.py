@@ -4,6 +4,7 @@ from .views import (
     RegistroKinesiologoView,
     LoginView,
     Verificacion2FAView,
+    ListaKinesiologosView,
 )
 
 urlpatterns = [
@@ -11,4 +12,5 @@ urlpatterns = [
     path('registro/kinesiologo/', RegistroKinesiologoView.as_view(), name='registro-kinesiologo'),
     path('login/',                LoginView.as_view(),                name='login'),
     path('verificar-2fa/',        Verificacion2FAView.as_view(),      name='verificar-2fa'),
+    path('kinesiologos/',         ListaKinesiologosView.as_view(),    name='kinesiologos'),
 ]

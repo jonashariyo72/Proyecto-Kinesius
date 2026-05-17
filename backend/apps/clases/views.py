@@ -25,23 +25,27 @@ class ClaseViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            # Solo administradores pueden crear/editar/eliminar (HU#13, #15, #27)
-            return [IsAdminUser()]
+            return [IsAuthenticated()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
 
-        # HU#32 - El kinesiólogo solo ve sus clases asignadas
         if hasattr(user, 'kinesiologo'):
             return Clase.objects.filter(kinesiologo=user.kinesiologo)
 
-        # Clientes solo ven clases activas
         if hasattr(user, 'cliente'):
             return Clase.objects.filter(activa=True)
 
-        # Administrador ve todo
         return Clase.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        if not hasattr(request.user, 'administrador'):
+            return Response(
+            {'detail': 'Solo los administradores pueden crear clases.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+        return super().create(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """

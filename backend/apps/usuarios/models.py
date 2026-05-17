@@ -70,29 +70,18 @@ class Administrador(models.Model):
 
 # Clase Kinesiólogo
 class Kinesiologo(models.Model):
-    ESPECIALIDAD_CHOICES = [
-        ('tren_inferior', 'Tren Inferior'),
-        ('zona_media',    'Zona Media'),
-        ('tren_superior', 'Tren Superior'),
-    ]
 
     usuario = models.OneToOneField(
         Usuario,
         on_delete=models.CASCADE,
         related_name='kinesiologo'
     )
-    especialidad = models.CharField(
-        max_length=50,
-        choices=ESPECIALIDAD_CHOICES,
-        blank=True,
-        null=True
-    )
 
     class Meta:
-        verbose_name = 'Kinesiólogo'
+        verbose_name = 'Kinesiologo'
 
     def __str__(self):
-        return f'Kinesiólogo: {self.usuario}'
+        return f'Kinesiologo: {self.usuario}'
 
 
 # Clase Cliente
