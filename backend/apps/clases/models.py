@@ -48,11 +48,16 @@ class Clase(models.Model):
         return f'{self.get_tipo_display()} - {self.get_dia_display()} {self.hora_inicio}'
 
     def cupos_disponibles(self):
+<<<<<<< HEAD
         from apps.reservas.models import Reserva
         reservas_activas = Reserva.objects.filter(
             clase=self,
             estado='confirmada'
         ).count()
+=======
+        """Retorna cuántos lugares quedan libres en la clase."""
+        reservas_activas = self.reservas.filter(estado='CONFIRMADA').count()
+>>>>>>> origin/main
         return self.capacidad_maxima - reservas_activas
 
     def tiene_cupo(self):

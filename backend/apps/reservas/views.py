@@ -35,6 +35,72 @@ class ReservaViewSet(viewsets.ModelViewSet):
         reserva.save()
         return Response({"status": "Asistencia registrada"})
 
+    
+    @action(detail=True, methods=['post'])
+    def cancelar_reserva(self, request, pk=None):
+
+        try:
+            reserva = Reserva.objects.get(id=pk)
+
+        except Reserva.DoesNotExist:
+            return Response(
+                {"error": "Reserva no encontrada"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # VALIDACIÓN: ya cancelada
+        if reserva.estado == 'CANCELADA':
+            return Response(
+                {"error": "La reserva ya está cancelada"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ahora = timezone.now()
+        diferencia = reserva.fecha_reserva - ahora
+
+        precio = reserva.clase.precio
+        saldo = 0
+
+        # MÁS DE 24 HS
+        if diferencia > timedelta(hours=24):
+            saldo = precio
+
+        # MENOS DE 24 HS
+        else:
+
+            # pagó total
+            if reserva.tipo_pago == 'TOTAL':
+                saldo = precio * 0.5
+
+            # pagó seña
+            elif reserva.tipo_pago == 'SENIA':
+                saldo = 0
+
+        # guardar saldo
+        reserva.saldo_a_favor = saldo
+
+        # cancelar reserva
+        reserva.estado = 'CANCELADA'
+        reserva.save()
+
+        # lista de espera
+        primer_espera = ListaEspera.objects.filter(
+            clase=reserva.clase
+        ).first()
+
+        if primer_espera:
+            primer_espera.notificado = True
+            primer_espera.fecha_notificacion = timezone.now()
+            primer_espera.save()
+
+        return Response(
+            {
+                "mensaje": "Reserva cancelada correctamente",
+                "saldo_a_favor": saldo
+            },
+            status=status.HTTP_200_OK
+        )
+
 class ListaEsperaViewSet(viewsets.ModelViewSet):
     queryset = ListaEspera.objects.all()
     serializer_class = ListaEsperaSerializer
