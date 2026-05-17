@@ -21,12 +21,13 @@ class Clase(models.Model):
     descripcion      = models.TextField(blank=True, null=True)
     dia              = models.CharField(max_length=20, choices=DIA_CHOICES)
     hora_inicio      = models.TimeField()
-    duracion_minutos = models.PositiveIntegerField(default=60)  # Siempre 1 hora según entrevista
-    capacidad_maxima = models.PositiveIntegerField()            # Configurable por el administrador
+    duracion_minutos = models.PositiveIntegerField(default=60)
+    capacidad_maxima = models.PositiveIntegerField()
     precio           = models.DecimalField(max_digits=10, decimal_places=2)
     activa           = models.BooleanField(default=True)
+    sala             = models.PositiveIntegerField(null=True, blank=True)
 
-    # Máximo 3 kinesiólogos por turno (regla de negocio de la entrevista)
+    # Máximo 3 kinesiólogos por turno
     kinesiologo = models.ForeignKey(
         Kinesiologo,
         on_delete=models.SET_NULL,
@@ -37,16 +38,26 @@ class Clase(models.Model):
 
     class Meta:
         verbose_name = 'Clase'
+
         # Una misma combinación de día + hora + kinesiólogo no puede repetirse
         unique_together = ('dia', 'hora_inicio', 'kinesiologo')
+
         ordering = ['dia', 'hora_inicio']
 
     def __str__(self):
         return f'{self.get_tipo_display()} - {self.get_dia_display()} {self.hora_inicio}'
 
     def cupos_disponibles(self):
+<<<<<<< HEAD
+        from apps.reservas.models import Reserva
+        reservas_activas = Reserva.objects.filter(
+            clase=self,
+            estado='confirmada'
+        ).count()
+=======
         """Retorna cuántos lugares quedan libres en la clase."""
         reservas_activas = self.reservas.filter(estado='CONFIRMADA').count()
+>>>>>>> origin/main
         return self.capacidad_maxima - reservas_activas
 
     def tiene_cupo(self):

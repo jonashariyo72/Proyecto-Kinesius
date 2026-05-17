@@ -1,6 +1,10 @@
 from django.db import models
 from apps.usuarios.models import Cliente
+<<<<<<< HEAD
+from apps.clases.models import Clase
+=======
 from django.utils import timezone
+>>>>>>> origin/main
 
 
 class Reserva(models.Model):
@@ -13,11 +17,20 @@ class Reserva(models.Model):
 
     paciente = models.ForeignKey(
         Cliente,
+<<<<<<< HEAD
+        on_delete=models.CASCADE,
+        related_name='reservas'
+    )
+
+    clase = models.ForeignKey(
+        Clase,
+=======
         on_delete=models.CASCADE
     )
 
     clase = models.ForeignKey(
         'clases.Clase',
+>>>>>>> origin/main
         on_delete=models.CASCADE,
         related_name='reservas'
     )
@@ -32,6 +45,10 @@ class Reserva(models.Model):
 
     asistio = models.BooleanField(default=False)
 
+<<<<<<< HEAD
+    def __str__(self):
+        return f'{self.paciente} - {self.clase}'
+=======
     fecha_reserva = models.DateTimeField(default=timezone.now)
 
     PAGO_CHOICES = (
@@ -50,6 +67,7 @@ class Reserva(models.Model):
         decimal_places=2,
         default=0
     )
+>>>>>>> origin/main
 
 
 class ListaEspera(models.Model):
@@ -60,7 +78,11 @@ class ListaEspera(models.Model):
     )
 
     clase = models.ForeignKey(
+<<<<<<< HEAD
+        Clase,
+=======
         'clases.Clase',
+>>>>>>> origin/main
         on_delete=models.CASCADE,
         related_name='lista_espera'
     )
@@ -69,7 +91,18 @@ class ListaEspera(models.Model):
 
     notificado = models.BooleanField(default=False)
 
+<<<<<<< HEAD
+    # Para la regla de las 2 horas de Laura
     fecha_notificacion = models.DateTimeField(
         null=True,
         blank=True
     )
+
+    def __str__(self):
+        return f'{self.paciente} - {self.clase}'
+=======
+    fecha_notificacion = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+>>>>>>> origin/main

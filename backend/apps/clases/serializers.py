@@ -11,19 +11,10 @@ class ClaseSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Clase
         fields = [
-            'id',
-            'tipo',
-            'descripcion',
-            'dia',
-            'hora_inicio',
-            'duracion_minutos',
-            'capacidad_maxima',
-            'precio',
-            'activa',
-            'kinesiologo',
-            'kinesiologo_nombre',
-            'cupos_disponibles',
-            'tiene_cupo',
+            'id', 'tipo', 'descripcion', 'dia', 'hora_inicio',
+            'duracion_minutos', 'capacidad_maxima', 'precio', 'activa',
+            'kinesiologo', 'kinesiologo_nombre', 'cupos_disponibles',
+            'tiene_cupo', 'sala',
         ]
 
     def get_cupos_disponibles(self, obj):
