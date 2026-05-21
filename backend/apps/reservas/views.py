@@ -6,6 +6,7 @@ from datetime import timedelta
 from .models import Reserva, ListaEspera
 from .serializers import ReservaSerializer, ListaEsperaSerializer
 from .permissions import IsOwnerOrAdmin
+from decimal import Decimal
 
 class ReservaViewSet(viewsets.ModelViewSet):
     queryset = Reserva.objects.all()
@@ -70,7 +71,7 @@ class ReservaViewSet(viewsets.ModelViewSet):
 
             # pagó total
             if reserva.tipo_pago == 'TOTAL':
-                saldo = precio * 0.5
+                saldo = precio * Decimal("0.5")
 
             # pagó seña
             elif reserva.tipo_pago == 'SENIA':
