@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage    from './pages/LoginPage'
 import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
+import MisTurnosPage from './pages/MisTurnosPage'
 
 // Redirige según el rol al entrar a "/"
 function RutaInicio() {
@@ -46,7 +47,7 @@ export default function App() {
 
           <Route path="/cliente" element={
             <RutaProtegida rolRequerido="cliente">
-              <div style={{padding:'2rem'}}>Panel Cliente — próximamente</div>
+              <MisTurnosPage />
             </RutaProtegida>
           } />
 
