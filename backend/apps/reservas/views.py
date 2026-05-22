@@ -131,3 +131,5 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
         )
         espera.delete() # Se elimina de la lista al confirmar
         return Response({"status": "Reserva confirmada exitosamente."}, status=status.HTTP_201_CREATED)
+
+        #cacona
