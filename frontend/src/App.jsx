@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage    from './pages/LoginPage'
 import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
-import MisTurnosPage from './pages/MisTurnosPage'
+import ClientePage  from './pages/ClientePage'
 
 // Redirige según el rol al entrar a "/"
 function RutaInicio() {
@@ -45,11 +45,11 @@ export default function App() {
             </RutaProtegida>
           } />
 
-          <Route path="/cliente" element={
-            <RutaProtegida rolRequerido="cliente">
-              <MisTurnosPage />
-            </RutaProtegida>
-          } />
+         <Route path="/cliente" element={
+  <RutaProtegida rolRequerido="cliente">
+    <ClientePage />   {/* ← reemplazá el div placeholder */}
+  </RutaProtegida>
+} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
