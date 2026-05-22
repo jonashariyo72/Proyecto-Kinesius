@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/clasesService'
+import { Link } from "react-router-dom";
 
 const DIAS = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
@@ -341,21 +342,36 @@ export default function ClientePage() {
           <span style={s.logoRest}>INESCIUS</span>
           <span style={s.badgeRol}>Cliente</span>
         </div>
+
         <nav style={s.nav}>
           <button
-            style={{ ...s.navBtn, ...(seccion === 'clases' ? s.navActivo : {}) }}
-            onClick={() => setSeccion('clases')}
+           style={{ ...s.navBtn, ...(seccion === 'clases' ? s.navActivo : {}) }}
+           onClick={() => setSeccion('clases')}
           >
-            <IconCalendar /> Clases
-          </button>
-          <button
+           <IconCalendar /> Clases
+         </button>
+
+         <button
             style={{ ...s.navBtn, ...(seccion === 'turnos' ? s.navActivo : {}) }}
             onClick={() => setSeccion('turnos')}
           >
             <IconList /> Mis turnos
           </button>
+
+          <Link
+            to="/cambiar-password"
+            style={s.navBtn}
+          >
+            Cambiar contraseña
+          </Link>
         </nav>
-        <button style={s.btnLogout} onClick={handleLogout}>Cerrar sesión</button>
+
+       <button
+          style={s.btnLogout}
+        onClick={handleLogout}
+        >
+          Cerrar sesión
+        </button>
       </header>
 
       <main style={s.main}>

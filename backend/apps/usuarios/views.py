@@ -6,6 +6,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import update_session_auth_hash
 import random
 import string
 
@@ -271,3 +274,41 @@ class ListaKinesiologosView(APIView):
         ]
 
         return Response(data)
+    
+
+# Cambiar contraseña
+
+class CambiarPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        password = request.data.get('password')
+        confirmar = request.data.get('confirmar')
+
+        # Validar campos vacíos
+        if not password or not confirmar:
+            return Response(
+                {'error': 'Por favor, complete todos los campos'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validar coincidencia
+        if password != confirmar:
+            return Response(
+                {'error': 'Las contraseñas no coinciden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Cambiar contraseña
+        user = request.user
+        user.set_password(password)
+        user.save()
+
+        # Mantener sesión activa
+        update_session_auth_hash(request, user)
+
+        return Response(
+            {'mensaje': 'Contraseña actualizada correctamente'},
+            status=status.HTTP_200_OK
+        )

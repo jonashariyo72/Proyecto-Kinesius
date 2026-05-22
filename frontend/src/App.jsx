@@ -4,6 +4,8 @@ import LoginPage    from './pages/LoginPage'
 import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
 import MisTurnosPage from './pages/MisTurnosPage'
+import ClientePage from './pages/ClientePage'
+import CambiarPasswordPage from './pages/CambiarPasswordPage'
 
 // Redirige según el rol al entrar a "/"
 function RutaInicio() {
@@ -47,9 +49,15 @@ export default function App() {
 
           <Route path="/cliente" element={
             <RutaProtegida rolRequerido="cliente">
-              <MisTurnosPage />
+              <ClientePage />
             </RutaProtegida>
           } />
+
+          <Route path="/cambiar-password" element={
+            <RutaProtegida rolRequerido="cliente">
+              <CambiarPasswordPage />
+            </RutaProtegida>
+          }/>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

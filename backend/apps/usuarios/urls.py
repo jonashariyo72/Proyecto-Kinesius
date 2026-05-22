@@ -5,6 +5,7 @@ from .views import (
     LoginView,
     Verificacion2FAView,
     ListaKinesiologosView,
+    CambiarPasswordView,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path('login/',                LoginView.as_view(),                name='login'),
     path('verificar-2fa/',        Verificacion2FAView.as_view(),      name='verificar-2fa'),
     path('kinesiologos/',         ListaKinesiologosView.as_view(),    name='kinesiologos'),
+    path('cambiar-password/', CambiarPasswordView.as_view()),
 ]
