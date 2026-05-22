@@ -16,23 +16,23 @@ function validarForm(form) {
   if (!form.apellido.trim())
     errores.apellido = 'El apellido es obligatorio.'
   if (!/^\d{7,8}$/.test(form.dni))
-    errores.dni = 'Debe tener 7 u 8 dígitos numéricos.'
+    errores.dni = '“Error al registrar el nuevo usuario porque el DNI ingresado no es válido"'
   if (!form.email) {
     errores.email = 'El correo es obligatorio.'
   } else {
     const dominiosPermitidos = ['gmail.com', 'outlook.com', 'hotmail.com', 'unlp.edu.ar']
     const dominio = form.email.split('@')[1]?.toLowerCase()
     if (!dominiosPermitidos.includes(dominio))
-      errores.email = 'Solo se permiten correos de Gmail, Outlook, Hotmail o UNLP.'
+      errores.email = 'Error al registrar el nuevo usuario porque el mail ingresado no es válido  '
   }
   if (form.password.length < 8 || form.password.length > 16)
-    errores.password = 'Debe tener entre 8 y 16 caracteres.'
+    errores.password = 'Error al registrar el nuevo usuario porque la contraseña no cumple los requisitos indicados.'
   else if (!/[A-Z]/.test(form.password))
-    errores.password = 'Debe contener al menos una mayúscula.'
+    errores.password = 'Error al registrar el nuevo usuario porque la contraseña no cumple los requisitos indicados'
   else if (!/[!@#$%^&*(),.?":{}|<>]/.test(form.password))
-    errores.password = 'Debe contener al menos un carácter especial.'
+    errores.password = 'Error al registrar el nuevo usuario porque la contraseña no cumple los requisitos indicados'
   if (form.password !== form.confirmar)
-    errores.confirmar = 'Las contraseñas no coinciden.'
+    errores.confirmar = 'Error al registrar el nuevo usuario porque la contraseña no cumple los requisitos indicados'
 
   return errores
 }

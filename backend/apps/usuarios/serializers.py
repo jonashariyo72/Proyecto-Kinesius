@@ -47,6 +47,9 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Usuario
         fields = ['nombre', 'apellido', 'dni', 'email', 'password']
+        extra_kwargs = {
+            'email': {'validators': []},  # ← desactiva el validador único de Django
+        }
 
     def validate_email(self, value):
         validar_email_formato(value)
@@ -60,7 +63,7 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
         
         if Usuario.objects.filter(email=value).exists():
             raise serializers.ValidationError(
-                'Error al registrar el nuevo usuario por correo electrónico ya existente en el sistema.'
+                'Error al registrar el nuevo usuario porque el correo electrónico ya existe en el sistema.'
             )
         return value
 
