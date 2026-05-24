@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import update_session_auth_hash
 import random
 import string
+from .serializers import validar_password2
 
 from .permissions import EsAdministrador
 from .models import Usuario, Administrador, Kinesiologo, Cliente
@@ -297,6 +298,18 @@ class CambiarPasswordView(APIView):
         if password != confirmar:
             return Response(
                 {'error': 'Las contraseñas no coinciden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar restricciones de contraseña
+        try:
+            validar_password2(password)
+
+        except Exception as e:
+            return Response(
+                {
+                    'error': e.detail[0]
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
