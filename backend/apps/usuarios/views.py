@@ -19,7 +19,7 @@ from .serializers import (
     RegistroClienteSerializer,
     RegistroKinesiologoSerializer,
     LoginSerializer,
-    Verificacion2FASerializer
+    Verificacion2FASerializer,
 )
 
 
@@ -325,3 +325,14 @@ class CambiarPasswordView(APIView):
             {'mensaje': 'Contraseña actualizada correctamente'},
             status=status.HTTP_200_OK
         )
+    
+# views.py de usuarios
+class PerfilClienteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cliente = getattr(request.user, 'cliente', None)
+        if not cliente:
+            return Response({'error': 'No es cliente'}, status=403)
+        return Response({'id': cliente.id, 'email': request.user.email})
+    

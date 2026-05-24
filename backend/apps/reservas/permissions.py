@@ -6,4 +6,4 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         if request.user.is_staff:
             return True
         # El paciente solo puede ver/editar lo suyo
-        return obj.paciente.user == request.user
+        return obj.paciente.usuario == request.user
