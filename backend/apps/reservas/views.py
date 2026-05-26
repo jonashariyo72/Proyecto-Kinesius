@@ -19,7 +19,11 @@ class ReservaViewSet(viewsets.ModelViewSet):
         HU: VISUALIZAR GRILLA DE TURNOS
         Escenario 1 y 2: Filtra por DNI del cliente.
         """
-        reservas = Reserva.objects.filter(paciente__dni=dni, estado='CONFIRMADA')
+        reservas = Reserva.objects.filter(
+            paciente__id=dni,   # ← además cambiá dni por id, porque le pasás el ID del cliente, no el DNI
+            estado__in=['CONFIRMADA', 'PENDIENTE']
+        )
+        
         if not reservas.exists():
             return Response({"detail": "No hay clases disponibles."}, status=status.HTTP_200_OK)
         

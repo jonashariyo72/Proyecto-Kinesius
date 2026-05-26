@@ -6,8 +6,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import update_session_auth_hash
 import random
 import string
+from .serializers import validar_password2
 
 from .permissions import EsAdministrador
 from .models import Usuario, Administrador, Kinesiologo, Cliente
@@ -15,7 +19,7 @@ from .serializers import (
     RegistroClienteSerializer,
     RegistroKinesiologoSerializer,
     LoginSerializer,
-    Verificacion2FASerializer
+    Verificacion2FASerializer,
 )
 
 
@@ -271,3 +275,99 @@ class ListaKinesiologosView(APIView):
         ]
 
         return Response(data)
+    
+
+# Cambiar contraseña
+
+class CambiarPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        password = request.data.get('password')
+        confirmar = request.data.get('confirmar')
+
+        # Validar campos vacíos
+        if not password or not confirmar:
+            return Response(
+                {'error': 'Por favor, complete todos los campos'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validar coincidencia
+        if password != confirmar:
+            return Response(
+                {'error': 'Las contraseñas no coinciden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar restricciones de contraseña
+        try:
+            validar_password2(password)
+
+        except Exception as e:
+            return Response(
+                {
+                    'error': e.detail[0]
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Cambiar contraseña
+        user = request.user
+        user.set_password(password)
+        user.save()
+
+        # Mantener sesión activa
+        update_session_auth_hash(request, user)
+
+        return Response(
+            {'mensaje': 'Contraseña actualizada correctamente'},
+            status=status.HTTP_200_OK
+        )
+    
+# views.py de usuarios
+class PerfilClienteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cliente = getattr(request.user, 'cliente', None)
+        if not cliente:
+            return Response({'error': 'No es cliente'}, status=403)
+        return Response({'id': cliente.id, 'email': request.user.email})
+    
+#Recuperar contraseña
+class RecuperarPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {'error': 'Por favor, ingrese un correo electronico'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = Usuario.objects.get(email=email)
+
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'El mail no se encuentra registrado'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        send_mail(
+            subject='Recuperación de contraseña',
+            message='Se solicitó recuperar la contraseña de tu cuenta.',
+            from_email='info@kinescius.com.ar',
+            recipient_list=[email],
+            fail_silently=True,
+        )
+
+        return Response(
+            {'mensaje': 'Se envió el mail de recuperación'},
+            status=status.HTTP_200_OK
+        )

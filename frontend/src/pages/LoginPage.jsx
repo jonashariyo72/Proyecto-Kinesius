@@ -67,6 +67,24 @@ function FormCredenciales({ onRequiere2FA, onError }) {
       <button type="submit" className="btn-primary" disabled={cargando}>
         {cargando ? 'Ingresando...' : 'Ingresar'}
       </button>
+      <p
+        style={{
+          marginTop: '1rem',
+          textAlign: 'center',
+          fontSize: '14px',
+        }}
+      >
+        <Link
+          to="/recuperar-password"
+          style={{
+            color: '#2d6a2d',
+            textDecoration: 'none',
+            fontWeight: '500',
+          }}
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </p>
     </form>
   )
 }

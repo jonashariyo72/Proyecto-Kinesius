@@ -22,6 +22,21 @@ def validar_password(password):
         )
     return password
 
+def validar_password2(password):
+    if not (8 <= len(password) <= 16):
+        raise serializers.ValidationError(
+            'Error al cambiar la contraseña porque la contraseña no cumple los requisitos indicados.'
+        )
+    if not re.search(r'[A-Z]', password):
+        raise serializers.ValidationError(
+            'Error al cambiar la contraseña porque la contraseña no cumple los requisitos indicados.'
+        )
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>/\\\-_+=;\'`~\[\]]', password):
+        raise serializers.ValidationError(
+            'Error al cambiar la contraseña porque la contraseña no cumple los requisitos indicados.'
+        )
+    return password
+
 
 def validar_dni(dni):
     if not re.match(r'^\d{7,8}$', dni):

@@ -3,7 +3,14 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage    from './pages/LoginPage'
 import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
-import MisTurnosPage from './pages/MisTurnosPage'
+
+import ClientePage from './pages/ClientePage'
+import CambiarPasswordPage from './pages/CambiarPasswordPage'
+import RecuperarPasswordPage from './pages/RecuperarPasswordPage'
+
+
+import { PagoExitoso, PagoFallido, PagoPendiente } from './pages/PagoRetornoPages'
+
 
 // Redirige según el rol al entrar a "/"
 function RutaInicio() {
@@ -47,9 +54,22 @@ export default function App() {
 
           <Route path="/cliente" element={
             <RutaProtegida rolRequerido="cliente">
-              <MisTurnosPage />
+              <ClientePage />
             </RutaProtegida>
           } />
+
+          <Route path="/cambiar-password" element={
+            <RutaProtegida rolRequerido="cliente">
+              <CambiarPasswordPage />
+            </RutaProtegida>
+          }/>
+
+          <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
+
+
+<Route path="/pago-exitoso"   element={<PagoExitoso />} />
+<Route path="/pago-fallido"   element={<PagoFallido />} />
+<Route path="/pago-pendiente" element={<PagoPendiente />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

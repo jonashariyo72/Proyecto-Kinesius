@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/clasesService'
+import { Link } from "react-router-dom";
+import PagoReservaPage from './PagoReservaPage'
+
 
 const DIAS = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
@@ -39,88 +42,21 @@ const IconList = () => (
   </svg>
 )
 
-// ─── Modal de pago ─────────────────────────────────────────────────────────────
-function ModalPago({ clase, onConfirmar, onCerrar }) {
-  const [metodo, setMetodo] = useState('MERCADOPAGO')
-  const [tipoPago, setTipoPago] = useState('SENIA')
-  const [procesando, setProcesando] = useState(false)
-  const precio = parseFloat(clase.precio)
-  const montoPagar = tipoPago === 'SENIA' ? precio * 0.5 : precio
+const IconLock = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+)
 
-  const handlePagar = async () => {
-    setProcesando(true)
-    await onConfirmar(clase.id, tipoPago, metodo)
-    setProcesando(false)
-  }
 
-  return (
-    <div style={s.overlay}>
-      <div style={s.modal}>
-        <div style={s.modalHeader}>
-          <h3 style={s.modalTitulo}>Confirmar reserva</h3>
-          <button style={s.btnX} onClick={onCerrar}>✕</button>
-        </div>
-
-        <div style={s.modalClaseInfo}>
-          <span style={s.badgeTipo}>{TIPOS[clase.tipo]}</span>
-          <p style={s.modalDia}>{DIAS[clase.dia]} — {clase.hora_inicio?.slice(0,5)} hs</p>
-          {clase.kinesiologo_nombre && (
-            <p style={s.modalKine}>👤 {clase.kinesiologo_nombre}</p>
-          )}
-        </div>
-
-        <div style={s.seccion}>
-          <p style={s.seccionLabel}>Tipo de pago</p>
-          <div style={s.opcionesRow}>
-            {[
-              { value: 'SENIA', label: `Seña 50% — $${(precio * 0.5).toLocaleString('es-AR')}` },
-              { value: 'TOTAL', label: `Total — $${precio.toLocaleString('es-AR')}` },
-            ].map(op => (
-              <button
-                key={op.value}
-                style={{ ...s.opcionBtn, ...(tipoPago === op.value ? s.opcionActiva : {}) }}
-                onClick={() => setTipoPago(op.value)}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={s.seccion}>
-          <p style={s.seccionLabel}>Método de pago</p>
-          <div style={s.opcionesRow}>
-            {[
-              { value: 'MERCADOPAGO', label: '🔵 Mercado Pago' },
-              { value: 'TARJETA',     label: '💳 Tarjeta' },
-            ].map(op => (
-              <button
-                key={op.value}
-                style={{ ...s.opcionBtn, ...(metodo === op.value ? s.opcionActiva : {}) }}
-                onClick={() => setMetodo(op.value)}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={s.totalRow}>
-          <span style={s.totalLabel}>Total a pagar</span>
-          <span style={s.totalMonto}>${montoPagar.toLocaleString('es-AR')}</span>
-        </div>
-
-        <button
-          style={{ ...s.btnVerde, width: '100%', opacity: procesando ? 0.7 : 1 }}
-          onClick={handlePagar}
-          disabled={procesando}
-        >
-          {procesando ? 'Procesando...' : 'Confirmar y pagar'}
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ─── Modal cancelar ────────────────────────────────────────────────────────────
 function ModalCancelar({ reserva, onConfirmar, onCerrar }) {
@@ -244,7 +180,7 @@ export default function ClientePage() {
   const [misReservas, setMisReservas] = useState([])
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState('')
-  const [modalPago, setModalPago]     = useState(null)   // clase seleccionada
+  const [pagoActivo, setPagoActivo] = useState(null)   // clase seleccionada
   const [modalCancelar, setModalCancelar] = useState(null) // reserva seleccionada
   const [modalEspera, setModalEspera] = useState(null)   // clase sin cupo
   const [pacienteId, setPacienteId]   = useState(null)
@@ -295,26 +231,32 @@ export default function ClientePage() {
   }, [seccion, pacienteId])
 
   // Confirmar reserva + pago
-  const confirmarReserva = async (claseId, tipoPago, metodo) => {
-    try {
-      await api.post('/reservas/gestion/', {
-        paciente: pacienteId,
-        clase: claseId,
-        tipo_pago: tipoPago,
-        metodo_pago: metodo,
-        estado: 'CONFIRMADA',
-      })
-      setModalPago(null)
-      mostrarToast('✅ Reserva confirmada correctamente.')
-      cargarClases()
-    } catch (err) {
-      const msg = err.response?.data?.non_field_errors?.[0]
-        || err.response?.data?.detail
-        || 'Error al reservar.'
-      mostrarToast(`❌ ${msg}`)
-      setModalPago(null)
-    }
+  const handleReservar = async (clase) => {
+  try {
+    const resReserva = await api.post('/reservas/gestion/', {
+      paciente: pacienteId,
+      clase: clase.id,
+    })
+    setPagoActivo({
+      reservaId:       resReserva.data.id,
+      montoTotalClase: parseFloat(clase.precio),
+    })
+  } catch (err) {
+    const msg =
+      err.response?.data?.non_field_errors?.[0] ||
+      err.response?.data?.detail ||
+      err.response?.data?.error ||
+      'Error al crear la reserva.'
+    mostrarToast(`❌ ${msg}`)
   }
+}
+
+const handlePagoExitoso = () => {
+  setPagoActivo(null)
+  mostrarToast('✅ Reserva confirmada correctamente.')
+  setSeccion('turnos')
+  cargarReservas()
+}
 
   // Cancelar reserva
   const confirmarCancelacion = async (reservaId) => {
@@ -330,6 +272,19 @@ export default function ClientePage() {
   }
 
   const handleLogout = () => { logout(); navigate('/login') }
+  
+  
+  if (pagoActivo) {
+    return (
+      <PagoReservaPage
+        reservaId={pagoActivo.reservaId}
+        montoTotalClase={pagoActivo.montoTotalClase}
+        onPagoExitoso={handlePagoExitoso}
+        onCancelar={() => setPagoActivo(null)}
+      />
+    )
+  }
+
 
   return (
     <div style={s.page}>
@@ -341,21 +296,37 @@ export default function ClientePage() {
           <span style={s.logoRest}>INESCIUS</span>
           <span style={s.badgeRol}>Cliente</span>
         </div>
+
         <nav style={s.nav}>
           <button
-            style={{ ...s.navBtn, ...(seccion === 'clases' ? s.navActivo : {}) }}
-            onClick={() => setSeccion('clases')}
+           style={{ ...s.navBtn, ...(seccion === 'clases' ? s.navActivo : {}) }}
+           onClick={() => setSeccion('clases')}
           >
-            <IconCalendar /> Clases
-          </button>
-          <button
+           <IconCalendar /> Clases
+         </button>
+
+         <button
             style={{ ...s.navBtn, ...(seccion === 'turnos' ? s.navActivo : {}) }}
             onClick={() => setSeccion('turnos')}
           >
             <IconList /> Mis turnos
           </button>
+
+          <Link
+            to="/cambiar-password"
+            style={s.navBtn}
+          >
+            <IconLock />
+            Cambiar contraseña
+          </Link>
         </nav>
-        <button style={s.btnLogout} onClick={handleLogout}>Cerrar sesión</button>
+
+       <button
+          style={s.btnLogout}
+        onClick={handleLogout}
+        >
+          Cerrar sesión
+        </button>
       </header>
 
       <main style={s.main}>
@@ -412,10 +383,7 @@ export default function ClientePage() {
                         ...s.btnReservar,
                         ...(c.tiene_cupo ? {} : s.btnEspera)
                       }}
-                      onClick={() => c.tiene_cupo
-                        ? setModalPago(c)
-                        : setModalEspera(c)
-                      }
+                      onClick={() => c.tiene_cupo ? handleReservar(c) : setModalEspera(c)}
                     >
                       {c.tiene_cupo ? 'Reservar' : 'Anotarme a lista de espera'}
                     </button>
@@ -474,13 +442,6 @@ export default function ClientePage() {
       </main>
 
       {/* ── Modales ── */}
-      {modalPago && (
-        <ModalPago
-          clase={modalPago}
-          onConfirmar={confirmarReserva}
-          onCerrar={() => setModalPago(null)}
-        />
-      )}
       {modalCancelar && (
         <ModalCancelar
           reserva={modalCancelar}
