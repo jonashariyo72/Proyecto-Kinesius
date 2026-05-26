@@ -7,6 +7,7 @@ from .views import (
     ListaKinesiologosView,
     CambiarPasswordView,
     PerfilClienteView,
+    RecuperarPasswordView,
 )
 
 urlpatterns = [
@@ -17,4 +18,5 @@ urlpatterns = [
     path('kinesiologos/',         ListaKinesiologosView.as_view(),    name='kinesiologos'),
     path('cambiar-password/', CambiarPasswordView.as_view()),
     path('perfil/', PerfilClienteView.as_view(), name='perfil-cliente'),
+    path('recuperar-password/', RecuperarPasswordView.as_view()),
 ]

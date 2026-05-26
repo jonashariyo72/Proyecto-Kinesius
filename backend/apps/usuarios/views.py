@@ -336,3 +336,38 @@ class PerfilClienteView(APIView):
             return Response({'error': 'No es cliente'}, status=403)
         return Response({'id': cliente.id, 'email': request.user.email})
     
+#Recuperar contraseña
+class RecuperarPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {'error': 'Por favor, ingrese un correo electronico'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = Usuario.objects.get(email=email)
+
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'El mail no se encuentra registrado'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        send_mail(
+            subject='Recuperación de contraseña',
+            message='Se solicitó recuperar la contraseña de tu cuenta.',
+            from_email='info@kinescius.com.ar',
+            recipient_list=[email],
+            fail_silently=True,
+        )
+
+        return Response(
+            {'mensaje': 'Se envió el mail de recuperación'},
+            status=status.HTTP_200_OK
+        )

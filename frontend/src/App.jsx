@@ -6,6 +6,7 @@ import AdminPage    from './pages/AdminPage'
 
 import ClientePage from './pages/ClientePage'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
+import RecuperarPasswordPage from './pages/RecuperarPasswordPage'
 
 
 import { PagoExitoso, PagoFallido, PagoPendiente } from './pages/PagoRetornoPages'
@@ -62,6 +63,8 @@ export default function App() {
               <CambiarPasswordPage />
             </RutaProtegida>
           }/>
+
+          <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
 
 
 <Route path="/pago-exitoso"   element={<PagoExitoso />} />
