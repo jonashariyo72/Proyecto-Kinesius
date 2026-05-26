@@ -105,8 +105,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email (para notificaciones)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
-EMAIL_PORT = 2525
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'ef1742937c6eb7'
-EMAIL_HOST_PASSWORD = 'db6810c6e2ef66'
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_HOST_USER = '4bd5fd6af616d9'
+EMAIL_HOST_PASSWORD = 'dd4858d7f6bb84'
+EMAIL_PORT = '2525'
