@@ -20,6 +20,7 @@ class Clase(models.Model):
     tipo             = models.CharField(max_length=50, choices=TIPO_CHOICES)
     descripcion      = models.TextField(blank=True, null=True)
     dia              = models.CharField(max_length=20, choices=DIA_CHOICES)
+    fecha_clase = models.DateField(null=True, blank=True)
     hora_inicio      = models.TimeField()
     duracion_minutos = models.PositiveIntegerField(default=60)
     capacidad_maxima = models.PositiveIntegerField()
@@ -48,8 +49,11 @@ class Clase(models.Model):
         return f'{self.get_tipo_display()} - {self.get_dia_display()} {self.hora_inicio}'
 
     def cupos_disponibles(self):
-        """Retorna cuántos lugares quedan libres en la clase."""
-        reservas_activas = self.reservas.filter(estado='CONFIRMADA').count()
+        from apps.reservas.models import Reserva
+        reservas_activas = Reserva.objects.filter(
+            clase=self,
+            estado='confirmada'
+        ).count()
         return self.capacidad_maxima - reservas_activas
 
     def tiene_cupo(self):

@@ -31,16 +31,108 @@
   -webkit-font-smoothing: antialiased;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body { min-height: 100vh; }
+body {
+  min-height: 100vh;
+}
 
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* =========================
+   DATEPICKER
+========================= */
+
+.react-datepicker-wrapper {
+  width: 100%;
+  display: block;
+}
+
+.react-datepicker__input-container {
+  width: 100%;
+  display: block;
+}
+
+.datepicker-input {
+  width: 100% !important;
+  height: 40px !important;
+  padding: 9px 12px !important;
+  border-radius: 8px !important;
+  border: 1px solid #ddd !important;
+  font-size: 14px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 400 !important;
+  color: var(--texto) !important;
+  background: var(--bg-card) !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.datepicker-input::placeholder {
+  color: var(--texto-suave) !important;
+}
+
+.datepicker-input:focus,
+.datepicker-input:focus-visible {
+  border-color: var(--borde-focus) !important;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15) !important;
+  outline: none !important;
+}
+
+/* Popup calendario */
+.react-datepicker {
+  border: 1px solid var(--borde) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  font-family: var(--font-sans) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.react-datepicker__header {
+  background: #f8faf8 !important;
+  border-bottom: 1px solid var(--borde) !important;
+}
+
+.react-datepicker__current-month {
+  color: var(--texto-titulo) !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day-name {
+  color: var(--texto-suave) !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day {
+  border-radius: 8px !important;
+  transition: background 0.15s ease;
+}
+
+.react-datepicker__day:hover {
+  background: rgba(46, 125, 50, 0.12) !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: var(--verde) !important;
+  color: white !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: var(--verde) !important;
 }
