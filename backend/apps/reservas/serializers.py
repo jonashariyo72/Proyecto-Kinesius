@@ -13,10 +13,10 @@ class ReservaSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Reserva
         fields = [
-            'id', 'paciente', 'clase', 'fecha_creacion', 'estado', 'asistio',
-            'clase_tipo', 'clase_dia', 'clase_hora', 'clase_kinesiologo', 'clase_precio',
-            'tipo_pago', 'fecha_reserva',
-        ]
+    'id', 'paciente', 'clase', 'fecha_creacion', 'estado', 'asistio',
+    'clase_tipo', 'clase_dia', 'clase_hora', 'clase_kinesiologo', 'clase_precio',
+    'tipo_pago', 'fecha_reserva',
+]
         read_only_fields = ['fecha_creacion', 'asistio']
 
     def get_clase_kinesiologo(self, obj):
