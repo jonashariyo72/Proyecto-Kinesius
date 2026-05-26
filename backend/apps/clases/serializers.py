@@ -7,13 +7,14 @@ class ClaseSerializer(serializers.ModelSerializer):
     cupos_disponibles = serializers.SerializerMethodField()
     tiene_cupo        = serializers.SerializerMethodField()
     kinesiologo_nombre = serializers.SerializerMethodField()
+    kinesiologo_email = serializers.SerializerMethodField()
 
     class Meta:
         model  = Clase
         fields = [
-            'id', 'tipo', 'descripcion', 'dia', 'hora_inicio',
+            'id', 'tipo', 'descripcion', 'dia', 'fecha_clase', 'hora_inicio',
             'duracion_minutos', 'capacidad_maxima', 'precio', 'activa',
-            'kinesiologo', 'kinesiologo_nombre', 'cupos_disponibles',
+            'kinesiologo', 'kinesiologo_nombre', 'kinesiologo_email', 'cupos_disponibles',
             'tiene_cupo', 'sala',
         ]
 
@@ -25,7 +26,12 @@ class ClaseSerializer(serializers.ModelSerializer):
 
     def get_kinesiologo_nombre(self, obj):
         if obj.kinesiologo:
-            return str(obj.kinesiologo.usuario)
+            return f'{obj.kinesiologo.usuario.nombre} {obj.kinesiologo.usuario.apellido}'
+        return None
+
+    def get_kinesiologo_email(self, obj):
+        if obj.kinesiologo:
+            return obj.kinesiologo.usuario.email
         return None
 
     def validate_capacidad_maxima(self, value):

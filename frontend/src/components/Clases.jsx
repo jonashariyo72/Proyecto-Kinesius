@@ -1,41 +1,50 @@
 import { useEffect, useState } from 'react'
 import api from '../services/clasesService'
 
+import DatePicker, { registerLocale } from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+
+import { addMonths, isWeekend, format } from 'date-fns'
+import { es } from 'date-fns/locale'
+
+registerLocale('es', es)
+
 const TIPOS = [
   { value: 'tren_inferior', label: 'Tren Inferior' },
-  { value: 'zona_media',    label: 'Zona Media' },
+  { value: 'zona_media', label: 'Zona Media' },
   { value: 'tren_superior', label: 'Tren Superior' },
 ]
 
-const DIAS = [
-  { value: 'lunes',     label: 'Lunes' },
-  { value: 'martes',    label: 'Martes' },
-  { value: 'miercoles', label: 'Miércoles' },
-  { value: 'jueves',    label: 'Jueves' },
-  { value: 'viernes',   label: 'Viernes' },
-]
-
 const SALAS = [
-  { id: 1,  capacidad: 12 },
-  { id: 2,  capacidad: 15 },
-  { id: 3,  capacidad: 10 },
-  { id: 4,  capacidad: 18 },
-  { id: 5,  capacidad: 14 },
-  { id: 6,  capacidad: 20 },
-  { id: 7,  capacidad: 11 },
-  { id: 8,  capacidad: 16 },
-  { id: 9,  capacidad: 13 },
+  { id: 1, capacidad: 12 },
+  { id: 2, capacidad: 15 },
+  { id: 3, capacidad: 10 },
+  { id: 4, capacidad: 18 },
+  { id: 5, capacidad: 14 },
+  { id: 6, capacidad: 20 },
+  { id: 7, capacidad: 11 },
+  { id: 8, capacidad: 16 },
+  { id: 9, capacidad: 13 },
   { id: 10, capacidad: 19 },
 ]
 
 const HORARIOS = [
-  '08:00', '09:00', '10:00', '11:00', '12:00',
-  '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
+  '08:00',
+  '09:00',
+  '10:00',
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+  '17:00',
+  '18:00',
 ]
 
 const FORM_VACIO = {
   tipo: '',
-  dia: '',
+  fecha: null,
   hora_inicio: '',
   sala: '',
   capacidad_maxima: '',
@@ -45,20 +54,30 @@ const FORM_VACIO = {
 }
 
 export default function Clases() {
-  const [clases, setClases]             = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState('')
-  const [filtroDia, setFiltroDia]       = useState('')
-  const [modal, setModal]               = useState(false)
-  const [form, setForm]                 = useState(FORM_VACIO)
-  const [editando, setEditando]         = useState(null)
-  const [guardando, setGuardando]       = useState(false)
+  const [clases, setClases] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [filtroDia, setFiltroDia] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroKinesiologo, setFiltroKinesiologo] = useState('')
+
+  const [modal, setModal] = useState(false)
+
+  const [form, setForm] = useState(FORM_VACIO)
+
+  const [editando, setEditando] = useState(null)
+  const [guardando, setGuardando] = useState(false)
+
   const [kinesiologos, setKinesiologos] = useState([])
-  const [formError, setFormError]       = useState('')
+
+  const [formError, setFormError] = useState('')
+
+  const [capacidadOriginal, setCapacidadOriginal] = useState(1)
 
   const formularioCompleto =
     form.tipo &&
-    form.dia &&
+    form.fecha &&
     form.hora_inicio &&
     form.sala &&
     form.kinesiologo
@@ -68,19 +87,29 @@ export default function Clases() {
     setError('')
 
     try {
-      const params = filtroDia ? `?dia=${filtroDia}` : ''
+      const params = new URLSearchParams()
 
-      const res = await api.get(`/clases/${params}`)
+      if (filtroDia) {
+        params.append('dia', filtroDia)
+      }
+
+      if (filtroTipo) {
+        params.append('tipo', filtroTipo)
+      }
+
+      if (filtroKinesiologo) {
+        params.append('kinesiologo', filtroKinesiologo)
+      }
+
+      const res = await api.get(`/clases/?${params.toString()}`)
 
       const data = Array.isArray(res.data)
         ? res.data
         : res.data.results ?? []
 
       setClases(data)
-
     } catch {
       setError('No se pudieron cargar las clases.')
-
     } finally {
       setLoading(false)
     }
@@ -88,18 +117,17 @@ export default function Clases() {
 
   useEffect(() => {
     cargar()
-  }, [filtroDia])
+  }, [filtroDia, filtroTipo, filtroKinesiologo])
 
   useEffect(() => {
-    api.get('/usuarios/kinesiologos/')
+    api
+      .get('/usuarios/kinesiologos/')
       .then(res => {
-
         const data = Array.isArray(res.data)
           ? res.data
           : res.data.results ?? []
 
         setKinesiologos(data)
-
       })
       .catch(() => {
         console.error('No se pudieron cargar los kinesiólogos')
@@ -108,19 +136,20 @@ export default function Clases() {
 
   const abrirCrear = () => {
     setEditando(null)
+    setCapacidadOriginal(1)
     setForm(FORM_VACIO)
     setFormError('')
     setModal(true)
   }
 
-  const abrirEditar = (c) => {
-    console.log('sala:', c.sala, typeof c.sala)
+  const abrirEditar = c => {
     setEditando(c.id)
     setFormError('')
+    setCapacidadOriginal(c.capacidad_maxima)
 
     setForm({
       tipo: c.tipo,
-      dia: c.dia,
+      fecha: null,
       hora_inicio: c.hora_inicio?.slice(0, 5),
       sala: c.sala ? String(c.sala) : '',
       capacidad_maxima: c.capacidad_maxima,
@@ -132,10 +161,16 @@ export default function Clases() {
     setModal(true)
   }
 
-  const guardar = async (e) => {
+  const guardar = async e => {
     e.preventDefault()
 
-    if (!form.tipo || !form.dia || !form.hora_inicio || !form.sala || !form.kinesiologo) {
+    if (
+      !form.tipo ||
+      !form.fecha ||
+      !form.hora_inicio ||
+      !form.sala ||
+      !form.kinesiologo
+    ) {
       alert('Por favor completá todos los campos antes de crear la clase.')
       return
     }
@@ -144,38 +179,38 @@ export default function Clases() {
 
     try {
       const payload = {
-        tipo: form.tipo,
-        dia: form.dia,
-        hora_inicio: form.hora_inicio,
+        tipo:             form.tipo,
+        dia:              form.fecha ? ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][form.fecha.getDay()] : '',
+        fecha_clase: form.fecha ? `${form.fecha.getFullYear()}-${String(form.fecha.getMonth()+1).padStart(2,'0')}-${String(form.fecha.getDate()).padStart(2,'0')}` : null,
+        hora_inicio:      form.hora_inicio,
         capacidad_maxima: form.capacidad_maxima,
-        precio: 15000,
-        kinesiologo: form.kinesiologo,
-        descripcion: form.descripcion,
-        sala: parseInt(form.sala),
+        precio:           15000,
+        kinesiologo:      form.kinesiologo,
+        descripcion:      form.descripcion,
+        sala:             parseInt(form.sala),
       }
 
-      editando
-        ? await api.patch(`/clases/${editando}/`, payload)
-        : await api.post('/clases/', payload)
+      if (editando) {
+        await api.patch(`/clases/${editando}/`, payload)
+      } else {
+        await api.post('/clases/', payload)
+      }
 
       setModal(false)
       cargar()
-
     } catch (err) {
       alert(JSON.stringify(err.response?.data || 'Error al guardar'))
-
     } finally {
       setGuardando(false)
     }
   }
 
-  const desactivar = async (id) => {
+  const desactivar = async id => {
     if (!confirm('¿Desactivar esta clase?')) return
 
     try {
       await api.delete(`/clases/${id}/`)
       cargar()
-
     } catch {
       alert('No se pudo desactivar.')
     }
@@ -200,9 +235,37 @@ export default function Clases() {
           >
             <option value="">Todos los días</option>
 
-            {DIAS.map(d => (
-              <option key={d.value} value={d.value}>
-                {d.label}
+            <option value="lunes">Lunes</option>
+            <option value="martes">Martes</option>
+            <option value="miercoles">Miércoles</option>
+            <option value="jueves">Jueves</option>
+            <option value="viernes">Viernes</option>
+          </select>
+
+          <select
+            style={s.select}
+            value={filtroTipo}
+            onChange={e => setFiltroTipo(e.target.value)}
+          >
+            <option value="">Todos los tipos</option>
+
+            {TIPOS.map(t => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            style={s.select}
+            value={filtroKinesiologo}
+            onChange={e => setFiltroKinesiologo(e.target.value)}
+          >
+            <option value="">Todos los kinesiólogos</option>
+
+            {kinesiologos.map(k => (
+              <option key={k.id} value={k.id}>
+                {k.nombre}
               </option>
             ))}
           </select>
@@ -210,7 +273,7 @@ export default function Clases() {
           <button
             style={{
               ...s.btnVerde,
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
             onClick={abrirCrear}
           >
@@ -219,13 +282,9 @@ export default function Clases() {
         </div>
       </div>
 
-      {loading && (
-        <p style={s.estado}>Cargando...</p>
-      )}
+      {loading && <p style={s.estado}>Cargando...</p>}
 
-      {error && (
-        <p style={s.errorTxt}>{error}</p>
-      )}
+      {error && <p style={s.errorTxt}>{error}</p>}
 
       {!loading && !error && clases.length === 0 && (
         <p style={s.estado}>No hay clases registradas.</p>
@@ -237,7 +296,7 @@ export default function Clases() {
             key={c.id}
             style={{
               ...s.card,
-              opacity: c.activa ? 1 : 0.5
+              opacity: c.activa ? 1 : 0.5,
             }}
           >
             <div style={s.cardTop}>
@@ -248,27 +307,27 @@ export default function Clases() {
               <span
                 style={{
                   ...s.cupo,
-                  color: c.tiene_cupo ? '#2d6a2d' : '#c0392b'
+                  color: c.tiene_cupo ? '#2d6a2d' : '#c0392b',
                 }}
               >
-                {c.capacidad_maxima - c.cupos_disponibles}/{c.capacidad_maxima} inscriptos
+                {c.capacidad_maxima - c.cupos_disponibles}/
+                {c.capacidad_maxima} inscriptos
               </span>
             </div>
 
             <div style={s.cardMid}>
               <span style={s.dia}>
-                {DIAS.find(d => d.value === c.dia)?.label}
+                {c.fecha_clase 
+                  ? new Date(c.fecha_clase + 'T00:00:00').toLocaleDateString('es-AR', {weekday: 'long', day: 'numeric', month: 'long'})
+                  : c.dia}
               </span>
-
-              <span style={s.hora}>
-                {c.hora_inicio?.slice(0, 5)} hs
-              </span>
-            </div>
-
+              <span style={s.hora}>{c.hora_inicio?.slice(0, 5)} hs</span>
+          </div>
             {c.kinesiologo_nombre && (
-              <p style={s.kine}>
-                👤 {c.kinesiologo_nombre}
-              </p>
+              <div>
+                <p style={s.kine}>👤 {c.kinesiologo_nombre}</p>
+                <p style={{...s.kine, color: '#888', fontSize: 11}}>{c.kinesiologo_email}</p>
+            </div>
             )}
 
             {c.sala && <p style={s.kine}>🚪 Sala {c.sala}</p>}
@@ -278,32 +337,30 @@ export default function Clases() {
             </p>
 
             {!c.tiene_cupo && (
-              <span style={s.llena}>
-                SIN CUPO
-              </span>
+              <span style={s.llena}>SIN CUPO</span>
             )}
 
             {!c.activa && (
-              <span style={s.inactiva}>
-                INACTIVA
-              </span>
+              <span style={s.inactiva}>INACTIVA</span>
             )}
 
-            <div style={s.acciones}>
-              <button
-                style={s.btnEditar}
-                onClick={() => abrirEditar(c)}
-              >
-                Editar
-              </button>
+            {c.activa && (
+              <div style={s.acciones}>
+                <button
+                  style={s.btnEditar}
+                  onClick={() => abrirEditar(c)}
+                >
+                  Editar
+                </button>
 
-              <button
-                style={s.btnEliminar}
-                onClick={() => desactivar(c.id)}
-              >
-                Desactivar
-              </button>
-            </div>
+                <button
+                  style={s.btnEliminar}
+                  onClick={() => desactivar(c.id)}
+                >
+                  Eliminar
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -323,14 +380,18 @@ export default function Clases() {
               onSubmit={guardar}
               style={s.formGrid}
             >
-
               <div style={s.campo}>
                 <label style={s.label}>Tipo</label>
 
                 <select
                   style={s.input}
                   value={form.tipo}
-                  onChange={e => setForm({...form, tipo: e.target.value})}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      tipo: e.target.value,
+                    })
+                  }
                 >
                   <option value="">Sin asignar</option>
 
@@ -342,22 +403,28 @@ export default function Clases() {
                 </select>
               </div>
 
+              {/* CAMPO FECHA OPTIMIZADO */}
               <div style={s.campo}>
-                <label style={s.label}>Día</label>
+                <label style={s.label}>Fecha</label>
 
-                <select
-                  style={s.input}
-                  value={form.dia}
-                  onChange={e => setForm({...form, dia: e.target.value})}
-                >
-                  <option value="">Sin asignar</option>
-
-                  {DIAS.map(d => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
+                <DatePicker
+                  selected={form.fecha}
+                  onChange={date =>
+                    setForm({
+                      ...form,
+                      fecha: date,
+                    })
+                  }
+                  minDate={new Date()}
+                  maxDate={addMonths(new Date(), 1)}
+                  filterDate={date => !isWeekend(date)}
+                  dateFormat="dd/MM/yyyy"
+                  placeholderText="Seleccioná una fecha"
+                  locale="es"
+                  showMonthDropdown={false}
+                  showYearDropdown={false}
+                  className="datepicker-input"
+                />
               </div>
 
               <div style={s.campo}>
@@ -366,23 +433,18 @@ export default function Clases() {
                 <select
                   style={s.input}
                   value={form.sala}
-                  onChange={e => {
-                    const sala = SALAS.find(
-                      sa => sa.id === parseInt(e.target.value)
-                    )
-
+                  onChange={e =>
                     setForm({
                       ...form,
-                      sala: sala ? sala.id : '',
-                      capacidad_maxima: sala ? sala.capacidad : '',
+                      sala: e.target.value,
                     })
-                  }}
+                  }
                 >
                   <option value="">Sin asignar</option>
 
                   {SALAS.map(sa => (
                     <option key={sa.id} value={String(sa.id)}>
-                      Sala {sa.id} — {sa.capacidad} personas
+                      Sala {sa.id}
                     </option>
                   ))}
                 </select>
@@ -394,7 +456,12 @@ export default function Clases() {
                 <select
                   style={s.input}
                   value={form.hora_inicio}
-                  onChange={e => setForm({...form, hora_inicio: e.target.value})}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      hora_inicio: e.target.value,
+                    })
+                  }
                 >
                   <option value="">Sin asignar</option>
 
@@ -407,12 +474,42 @@ export default function Clases() {
               </div>
 
               <div style={s.campo}>
+                <label style={s.label}>Capacidad máxima</label>
+
+                <input
+                  style={s.input}
+                  type="number"
+                  min={editando ? capacidadOriginal : 1}
+                  value={form.capacidad_maxima}
+                  onChange={e => {
+                    e.target.setCustomValidity('')
+
+                    setForm({
+                      ...form,
+                      capacidad_maxima: e.target.value,
+                    })
+                  }}
+                  onInvalid={e => {
+                    e.target.setCustomValidity(
+                      `La capacidad debe ser mayor o igual a ${capacidadOriginal}`
+                    )
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={s.campo}>
                 <label style={s.label}>Kinesiólogo</label>
 
                 <select
                   style={s.input}
                   value={form.kinesiologo}
-                  onChange={e => setForm({...form, kinesiologo: e.target.value})}
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      kinesiologo: e.target.value,
+                    })
+                  }
                 >
                   <option value="">Sin asignar</option>
 
@@ -431,7 +528,7 @@ export default function Clases() {
                   style={{
                     ...s.input,
                     background: '#f5f5f5',
-                    color: '#888'
+                    color: '#888',
                   }}
                   type="number"
                   value={15000}
@@ -442,7 +539,7 @@ export default function Clases() {
               <div
                 style={{
                   ...s.campo,
-                  gridColumn: '1 / -1'
+                  gridColumn: '1 / -1',
                 }}
               >
                 <label style={s.label}>
@@ -453,13 +550,13 @@ export default function Clases() {
                   style={{
                     ...s.input,
                     height: 70,
-                    resize: 'vertical'
+                    resize: 'vertical',
                   }}
                   value={form.descripcion}
                   onChange={e =>
                     setForm({
                       ...form,
-                      descripcion: e.target.value
+                      descripcion: e.target.value,
                     })
                   }
                 />
@@ -469,7 +566,7 @@ export default function Clases() {
                 style={{
                   ...s.acciones,
                   gridColumn: '1 / -1',
-                  marginTop: 4
+                  marginTop: 4,
                 }}
               >
                 <button
@@ -485,8 +582,10 @@ export default function Clases() {
                   style={{
                     ...s.btnVerde,
                     opacity: formularioCompleto ? 1 : 0.5,
-                    cursor: formularioCompleto ? 'pointer' : 'not-allowed',
-                    userSelect: 'none'
+                    cursor: formularioCompleto
+                      ? 'pointer'
+                      : 'not-allowed',
+                    userSelect: 'none',
                   }}
                   disabled={!formularioCompleto || guardando}
                 >
@@ -497,7 +596,6 @@ export default function Clases() {
                     : 'Crear clase'}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
@@ -513,33 +611,34 @@ const s = {
     alignItems: 'flex-start',
     marginBottom: '1.5rem',
     flexWrap: 'wrap',
-    gap: 12
+    gap: 12,
   },
 
   topRight: {
     display: 'flex',
     gap: 10,
-    alignItems: 'center'
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
 
   titulo: {
     fontSize: 22,
     fontWeight: 700,
     color: '#1a1a1a',
-    margin: 0
+    margin: 0,
   },
 
   sub: {
     fontSize: 13,
     color: '#888',
-    margin: '4px 0 0'
+    margin: '4px 0 0',
   },
 
   select: {
     padding: '8px 12px',
     borderRadius: 8,
     border: '1px solid #ddd',
-    fontSize: 14
+    fontSize: 14,
   },
 
   btnVerde: {
@@ -552,25 +651,25 @@ const s = {
     fontWeight: 600,
     transition: '0.2s',
     cursor: 'pointer',
-    userSelect: 'none'
+    userSelect: 'none',
   },
 
   estado: {
     textAlign: 'center',
     color: '#aaa',
-    padding: '3rem'
+    padding: '3rem',
   },
 
   errorTxt: {
     color: '#c0392b',
     fontSize: 13,
-    margin: '0 0 12px'
+    margin: '0 0 12px',
   },
 
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-    gap: 16
+    gap: 16,
   },
 
   card: {
@@ -580,13 +679,13 @@ const s = {
     padding: '1.2rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: 8
+    gap: 8,
   },
 
   cardTop: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
 
   badge: {
@@ -595,43 +694,38 @@ const s = {
     fontSize: 12,
     fontWeight: 600,
     padding: '3px 10px',
-    borderRadius: 20
+    borderRadius: 20,
   },
 
   cupo: {
     fontSize: 12,
-    fontWeight: 600
+    fontWeight: 600,
   },
 
   cardMid: {
     display: 'flex',
     gap: 12,
-    alignItems: 'baseline'
-  },
-
-  dia: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: '#333'
+    alignItems: 'baseline',
   },
 
   hora: {
     fontSize: 20,
     fontWeight: 700,
-    color: '#2d6a2d'
+    color: '#2d6a2d',
   },
 
   kine: {
     fontSize: 13,
     color: '#555',
-    margin: 0
+    margin: 0,
+    wordBreak: 'break-all',
   },
 
   precio: {
     fontSize: 14,
     fontWeight: 600,
     color: '#c8a000',
-    margin: 0
+    margin: 0,
   },
 
   llena: {
@@ -641,7 +735,7 @@ const s = {
     background: '#fdecea',
     padding: '2px 8px',
     borderRadius: 4,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
 
   inactiva: {
@@ -651,13 +745,13 @@ const s = {
     background: '#f0f0f0',
     padding: '2px 8px',
     borderRadius: 4,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
 
   acciones: {
     display: 'flex',
     gap: 8,
-    marginTop: 4
+    marginTop: 4,
   },
 
   btnEditar: {
@@ -668,7 +762,7 @@ const s = {
     background: 'transparent',
     color: '#2d6a2d',
     fontSize: 13,
-    cursor: 'pointer'
+    cursor: 'pointer',
   },
 
   btnEliminar: {
@@ -679,7 +773,7 @@ const s = {
     background: 'transparent',
     color: '#e74c3c',
     fontSize: 13,
-    cursor: 'pointer'
+    cursor: 'pointer',
   },
 
   overlay: {
@@ -689,7 +783,7 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100
+    zIndex: 100,
   },
 
   modal: {
@@ -699,40 +793,42 @@ const s = {
     width: '90%',
     maxWidth: 500,
     maxHeight: '90vh',
-    overflowY: 'auto'
+    overflowY: 'auto',
   },
 
   modalTitulo: {
     fontSize: 18,
     fontWeight: 700,
     margin: '0 0 1.2rem',
-    color: '#1a1a1a'
+    color: '#1a1a1a',
   },
 
   formGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: 14
+    gap: 14,
   },
 
   campo: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 5
+    gap: 5,
   },
 
   label: {
     fontSize: 13,
     fontWeight: 500,
-    color: '#555'
+    color: '#555',
   },
 
   input: {
+    height: 40, /* Sincronizado con el Datepicker */
     padding: '9px 12px',
     borderRadius: 8,
     border: '1px solid #ddd',
     fontSize: 14,
-    outline: 'none'
+    outline: 'none',
+    boxSizing: 'border-box',
   },
 
   btnCancelar: {
@@ -742,6 +838,6 @@ const s = {
     border: '1px solid #ddd',
     background: 'transparent',
     fontSize: 14,
-    cursor: 'pointer'
+    cursor: 'pointer',
   },
 }
