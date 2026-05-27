@@ -367,9 +367,6 @@ export default function Clases() {
           </div>
         </div>
       )}
-<button style={s.btnLista} onClick={() => setModalListaEspera(c)}>
-  Lista de espera
-</button>
       {/* ── Modal eliminar ── */}
       {modalEliminar && (
         <div style={s.overlay}>
