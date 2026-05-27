@@ -52,7 +52,7 @@ class Clase(models.Model):
         from apps.reservas.models import Reserva
         reservas_activas = Reserva.objects.filter(
             clase=self,
-            estado='confirmada'
+            estado='CONFIRMADA'
         ).count()
         return self.capacidad_maxima - reservas_activas
 

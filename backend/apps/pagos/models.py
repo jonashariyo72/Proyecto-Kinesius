@@ -22,6 +22,11 @@ class PagoReserva(models.Model):
     ]
 
     # OneToOne porque una reserva tiene un único pago
+    monto_devuelto = models.DecimalField(
+    max_digits=10, decimal_places=2,
+    default=0,
+    help_text='Monto devuelto al cliente en caso de cancelación'
+)
     reserva = models.OneToOneField(
         Reserva,
         on_delete=models.CASCADE,

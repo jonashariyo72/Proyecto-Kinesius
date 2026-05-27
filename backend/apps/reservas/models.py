@@ -28,7 +28,7 @@ class Reserva(models.Model):
     estado = models.CharField(
         max_length=20,
         choices=ESTADOS,
-        default='PENDIENTE'
+        default='CONFIRMADA'
     )
     fecha_reserva = models.DateTimeField(default=timezone.now)
 

@@ -18,7 +18,9 @@ class ReservaSerializer(serializers.ModelSerializer):
     'tipo_pago', 'fecha_reserva',
 ]
         read_only_fields = ['fecha_creacion', 'asistio']
-
+    extra_kwargs = {
+    'estado': {'default': 'CONFIRMADA'}
+    }
     def get_clase_kinesiologo(self, obj):
         if obj.clase.kinesiologo:
             u = obj.clase.kinesiologo.usuario
@@ -48,6 +50,12 @@ class ReservaSerializer(serializers.ModelSerializer):
         return data
 
 class ListaEsperaSerializer(serializers.ModelSerializer):
+    paciente_nombre = serializers.SerializerMethodField()
+
     class Meta:
         model = ListaEspera
         fields = '__all__'
+
+    def get_paciente_nombre(self, obj):
+        u = obj.paciente.usuario
+        return f'{u.nombre} {u.apellido}'
