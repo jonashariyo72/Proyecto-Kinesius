@@ -371,3 +371,34 @@ class RecuperarPasswordView(APIView):
             {'mensaje': 'Se envió el mail de recuperación'},
             status=status.HTTP_200_OK
         )
+
+
+ 
+class ListaClientesView(APIView):
+    """
+    GET /usuarios/clientes/
+    Solo accesible por administradores.
+    Devuelve la lista de todos los clientes registrados.
+    """
+    permission_classes = [EsAdministrador]
+ 
+    def get(self, request):
+        clientes = Cliente.objects.select_related('usuario').all()
+ 
+        data = [
+            {
+                'id':                 c.id,
+                'nombre':             c.usuario.nombre,
+                'apellido':           c.usuario.apellido,
+                'dni':                c.usuario.dni,
+                'email':              c.usuario.email,
+                'telefono':           c.usuario.telefono or '',
+                'es_abonado':         c.es_abonado,
+                'fecha_venc_cuota':   str(c.fecha_venc_cuota) if c.fecha_venc_cuota else None,
+                'suspendido':         c.suspendido,
+                'cant_cancelaciones': c.cant_cancelaciones,
+            }
+            for c in clientes
+        ]
+ 
+        return Response(data, status=status.HTTP_200_OK)

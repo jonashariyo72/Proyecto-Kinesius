@@ -44,7 +44,7 @@ const FORM_VACIO = {
   descripcion: '',
 }
 
-export default function Clases() {
+export default function Clases({ precioPorDefecto = 15000 }) {
   const [modalListaEspera, setModalListaEspera] = useState(null)
   const [clases, setClases]               = useState([])
   const [loading, setLoading]             = useState(true)
@@ -53,7 +53,7 @@ export default function Clases() {
   const [filtroTipo, setFiltroTipo]       = useState('')
   const [filtroKinesiologo, setFiltroKinesiologo] = useState('')
   const [modal, setModal]                 = useState(false)
-  const [form, setForm]                   = useState(FORM_VACIO)
+  const [form, setForm]                   = useState({ ...FORM_VACIO, precio: precioPorDefecto })
   const [editando, setEditando]           = useState(null)
   const [guardando, setGuardando]         = useState(false)
   const [kinesiologos, setKinesiologos]   = useState([])
@@ -101,7 +101,7 @@ export default function Clases() {
   const abrirCrear = () => {
     setEditando(null)
     setMinCapacidad(1)
-    setForm(FORM_VACIO)
+    setForm({ ...FORM_VACIO, precio: precioPorDefecto })
     setFormError('')
     setModal(true)
   }
@@ -115,12 +115,12 @@ export default function Clases() {
 
     setForm({
       tipo:             c.tipo,
-      fecha:             c.fecha_clase ? new Date(c.fecha_clase + 'T00:00:00')  : null,
+      fecha:            c.fecha_clase ? new Date(c.fecha_clase + 'T00:00:00') : null,
       hora_inicio:      c.hora_inicio?.slice(0, 5),
       sala:             c.sala ? String(c.sala) : '',
       capacidad_maxima: c.capacidad_maxima,
       kinesiologo:      c.kinesiologo || '',
-      precio:           15000,
+      precio:           c.precio || precioPorDefecto,
       descripcion:      c.descripcion || '',
     })
 
@@ -157,7 +157,7 @@ export default function Clases() {
 
         hora_inicio:      form.hora_inicio,
         capacidad_maxima: form.capacidad_maxima,
-        precio:           15000,
+        precio:           form.precio,
         kinesiologo:      form.kinesiologo,
         descripcion:      form.descripcion,
         sala:             parseInt(form.sala),
@@ -447,7 +447,16 @@ export default function Clases() {
                   dateFormat="dd/MM/yyyy"
                   placeholderText="Seleccioná una fecha"
                   locale="es"
-                  className="datepicker-input"
+                  customInput={
+                    <input
+                      style={{
+                        ...s.input,
+                        width: '100%',
+                        cursor: 'pointer',
+                      }}
+                      readOnly
+                    />
+                  }
                 />
               </div>
 
@@ -540,7 +549,7 @@ export default function Clases() {
                     color: '#888'
                   }}
                   type="number"
-                  value={15000}
+                  value={form.precio}
                   readOnly
                 />
               </div>
