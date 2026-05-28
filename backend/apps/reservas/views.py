@@ -21,7 +21,7 @@ class ReservaViewSet(viewsets.ModelViewSet):
         """
         reservas = Reserva.objects.filter(
             paciente__id=dni,   # ← además cambiá dni por id, porque le pasás el ID del cliente, no el DNI
-            estado__in=['CONFIRMADA', 'PENDIENTE']
+            estado='CONFIRMADA'
         )
         
         if not reservas.exists():

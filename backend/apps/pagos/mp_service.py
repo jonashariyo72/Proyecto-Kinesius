@@ -44,10 +44,38 @@ def generar_preferencia_mp(pago_obj):
 
     # ⚠️ Llamada única — antes estaba duplicada, lo que generaba dos preferencias
     preference_response = sdk.preference().create(preference_data)
-    preference = preference_response["response"]
 
     print("=== RESPUESTA MP ===")
     print(preference_response)
     print("===================")
 
-    return preference.get("init_point")
+    if preference_response.get("status") not in [200, 201]:
+        raise Exception(preference_response.get("response"))
+
+    preference = preference_response["response"]
+
+    init_point = preference.get("init_point") or preference.get("sandbox_init_point")
+
+    if not init_point:
+        raise Exception(f"Mercado Pago no devolvió init_point. Respuesta: {preference}")
+
+    return init_point
+
+def obtener_pago_mp(payment_id):
+    response = sdk.payment().get(payment_id)
+
+    if response.get("status") not in [200, 201]:
+        raise Exception(response.get("response"))
+
+    return response["response"]
+
+def buscar_pago_por_external_reference(pago_id):
+    response = sdk.payment().search({
+        "external_reference": str(pago_id)
+    })
+
+    if response.get("status") not in [200, 201]:
+        raise Exception(response.get("response"))
+
+    results = response["response"].get("results", [])
+    return results[0] if results else None

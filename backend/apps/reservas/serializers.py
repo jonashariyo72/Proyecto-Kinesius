@@ -16,11 +16,9 @@ class ReservaSerializer(serializers.ModelSerializer):
     'id', 'paciente', 'clase', 'fecha_creacion', 'estado', 'asistio',
     'clase_tipo', 'clase_dia', 'clase_hora', 'clase_kinesiologo', 'clase_precio',
     'tipo_pago', 'fecha_reserva',
-]
-        read_only_fields = ['fecha_creacion', 'asistio']
-    extra_kwargs = {
-    'estado': {'default': 'CONFIRMADA'}
-    }
+    ]
+    read_only_fields = ['fecha_creacion', 'asistio']
+
     def get_clase_kinesiologo(self, obj):
         if obj.clase.kinesiologo:
             u = obj.clase.kinesiologo.usuario
@@ -44,7 +42,7 @@ class ReservaSerializer(serializers.ModelSerializer):
             )
 
         # Se fija si ya está anotado a esta clase
-        if Reserva.objects.filter(paciente=paciente, clase=clase, estado__in=['CONFIRMADA', 'PENDIENTE']).exists():
+        if Reserva.objects.filter(paciente=paciente, clase=clase, estado='CONFIRMADA').exists():
             raise serializers.ValidationError("Ya tenés una reserva activa para esta clase.")
 
         return data

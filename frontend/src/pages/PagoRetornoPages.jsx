@@ -53,8 +53,9 @@ function PagoRetornoBase({ estado, titulo, subtitulo, emoji, colorClass, accionE
         }
       })
       .finally(() => {
-         sessionStorage.removeItem('mp_pago_id')
-         setProcesando(false)
+        sessionStorage.removeItem('mp_pago_id')
+        setProcesando(false)
+        navigate('/cliente')
 })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -127,26 +128,16 @@ export function PagoFallido() {
   )
 }
 
-// ─── Pago pendiente ───────────────────────────────────────────────────────────
+// ─── Pago no realizado ───────────────────────────────────────────────────────────
 export function PagoPendiente() {
-  // Para pendiente no confirmamos nada — MP nos avisará por webhook cuando se apruebe
   return (
-    <div style={styles.overlay}>
-      <div style={styles.card}>
-        <div style={styles.logo}>
-          <span style={styles.logoK}>K</span>
-          <span style={styles.logoText}>INESCIUS</span>
-        </div>
-        <div style={styles.emoji}>⏳</div>
-        <h2 style={{ ...styles.titulo, color: '#d97706' }}>Pago en proceso</h2>
-        <p style={styles.subtitulo}>
-          Tu pago está siendo procesado. Te avisaremos por email cuando se confirme.
-        </p>
-        <button style={styles.btnPrimary} onClick={() => window.location.assign('/cliente')}>
-          Ver mis reservas
-        </button>
-      </div>
-    </div>
+    <PagoRetornoBase
+      estado="rechazado"
+      emoji="⏳"
+      titulo="El pago no se completó"
+      subtitulo="La reserva no fue confirmada. Podés intentarlo nuevamente."
+      colorClass="#d97706"
+    />
   )
 }
 

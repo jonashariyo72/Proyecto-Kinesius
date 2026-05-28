@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { iniciarPago, confirmarPago, getDetallePago } from '../services/pagoService'
+import { iniciarPago, confirmarPago, getDetallePago, verificarPagoMP } from '../services/pagoService'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 import '../styles/pago.css'
@@ -244,52 +244,42 @@ function ConfirmarSaldo({ tipoPago, montoSena, montoTotal, saldoFavor, onConfirm
 // ─── Paso 3c: esperando MercadoPago ──────────────────────────────────────────
 // Consulta el estado del pago cada 3 segundos hasta que MP confirme o rechace
 function EsperandoMercadoPago({ onPagoConfirmado }) {
-  useEffect(() => {
+  const [error, setError] = useState('')
+  const [verificando, setVerificando] = useState(false)
+
+  async function verificar() {
     const pagoId = sessionStorage.getItem('mp_pago_id')
     if (!pagoId) return
 
-    // ── Polling cada 3s ──
-    const intervalo = setInterval(async () => {
-      try {
-        const { data } = await getDetallePago(Number(pagoId))
-        if (data.estado === 'aprobado' || data.estado === 'rechazado') {
-          clearInterval(intervalo)
-          onPagoConfirmado(data)
-        }
-      } catch {
-        // sigue reintentando
+    setVerificando(true)
+    setError('')
+
+    try {
+      const { data } = await verificarPagoMP(Number(pagoId))
+
+      if (data.estado === 'aprobado') {
+        sessionStorage.removeItem('mp_pago_id')
+        onPagoConfirmado({ estado: 'aprobado' })
+      } else if (data.estado === 'rechazado') {
+        sessionStorage.removeItem('mp_pago_id')
+        onPagoConfirmado({ estado: 'rechazado' })
+      } else {
+        setError('Todavía no encontramos el pago aprobado en Mercado Pago.')
       }
-    }, 3000)
-
-    // ── Cuando el usuario vuelve a esta pestaña, forzamos confirmar ──
-    const handleFocus = async () => {
-      try {
-        // Intentamos confirmar el pago (MP ya lo aprobó en su lado)
-        await confirmarPago({
-          pagoId:               Number(pagoId),
-          estado:               'aprobado',
-          idTransaccionExterna: '',
-        })
-      } catch {
-        // Si ya fue procesado, ignoramos el error
-      }
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'No pudimos verificar el pago.')
+    } finally {
+      setVerificando(false)
     }
-
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      clearInterval(intervalo)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [])
+  }
 
   return (
     <div className="pago-spinner-wrap">
-      <div className="pago-spinner" />
-      <p>Esperando confirmación de Mercado Pago...</p>
-      <p style={{ fontSize: '0.8rem', color: '#888' }}>
-        Una vez que pagaste, volvé a esta pestaña para continuar.
-      </p>
+      <p>Cuando termines el pago en Mercado Pago, volvé acá y tocá verificar.</p>
+      {error && <p className="auth-error">{error}</p>}
+      <button className="btn-primary" onClick={verificar} disabled={verificando}>
+        {verificando ? 'Verificando...' : 'Confirmar'}
+      </button>
     </div>
   )
 }

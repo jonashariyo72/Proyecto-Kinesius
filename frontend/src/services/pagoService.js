@@ -31,3 +31,9 @@ export const getMisPagos = () =>
 
 export const getDetallePago = (pagoId) =>
   api.get(`/pagos/${pagoId}/`)
+
+export function verificarPagoMP(pagoId) {
+  return api.post('/pagos/verificar-mp/', {
+    pago_id: pagoId,
+  })
+}

@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import PagoReserva
 from .serializers import ConfirmarPagoSerializer, PagoReservaSerializer
 from apps.usuarios.permissions import EsAdministrador
-from .mp_service import generar_preferencia_mp
+from .mp_service import generar_preferencia_mp, obtener_pago_mp, buscar_pago_por_external_reference
  
 from apps.reservas.models import Reserva
 from decimal import Decimal
@@ -158,8 +158,17 @@ class ConfirmarPagoView(APIView):
 
         if pago.estado != 'pendiente':
             return Response({'error': f'El pago ya fue procesado: {pago.get_estado_display()}.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        estado_final = data['estado']
 
-        pago.estado = data['estado']
+        if data.get('id_transaccion_externa'):
+            pago_mp = obtener_pago_mp(data['id_transaccion_externa'])
+            if pago_mp.get('status') == 'approved':
+                estado_final = 'aprobado'
+            else:
+                estado_final = 'rechazado'
+
+        pago.estado = estado_final
         if data.get('id_transaccion_externa'):
             pago.id_transaccion_externa = data['id_transaccion_externa']
         pago.save()
@@ -167,6 +176,10 @@ class ConfirmarPagoView(APIView):
         if pago.estado == 'aprobado':
             pago.reserva.estado = 'CONFIRMADA'
             pago.reserva.save()
+        else:
+            reserva = pago.reserva
+            pago.delete()
+            reserva.delete()
 
         return Response(
             {'mensaje': f'Pago {pago.get_estado_display()} correctamente.', 'pago': PagoReservaSerializer(pago).data},
@@ -238,3 +251,38 @@ class SaldoFavorView(APIView):
         total_saldo = sum(r.saldo_a_favor for r in reservas_canceladas) or Decimal('0')
  
         return Response({'saldo_disponible': str(total_saldo)})
+
+class VerificarPagoMPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        pago_id = request.data.get('pago_id')
+
+        if not pago_id:
+            return Response({'error': 'Falta pago_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pago = PagoReserva.objects.select_related('reserva').get(pk=pago_id)
+        except PagoReserva.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pago_mp = buscar_pago_por_external_reference(pago_id)
+
+        if not pago_mp:
+            return Response({'estado': 'pendiente'}, status=status.HTTP_200_OK)
+
+        if pago_mp.get('status') == 'approved':
+            pago.estado = 'aprobado'
+            pago.id_transaccion_externa = str(pago_mp.get('id'))
+            pago.save()
+
+            pago.reserva.estado = 'CONFIRMADA'
+            pago.reserva.save()
+
+            return Response({'estado': 'aprobado'}, status=status.HTTP_200_OK)
+
+        reserva = pago.reserva
+        pago.delete()
+        reserva.delete()
+
+        return Response({'estado': 'rechazado'}, status=status.HTTP_200_OK)

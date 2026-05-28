@@ -7,14 +7,11 @@ import Clientes from '../components/Clientes'
 export default function AdminPage() {
   const { logout } = useAuth()
   const navigate   = useNavigate()
-<<<<<<< HEAD
   const [confirmarLogout, setConfirmarLogout] = useState(false)
-=======
   const [verClientes, setVerClientes] = useState(false)
   const [precio, setPrecio]           = useState(15000)
   const [inputPrecio, setInputPrecio] = useState(15000)
   const [editandoPrecio, setEditandoPrecio] = useState(false)
->>>>>>> 163bb613299ef2f2436ae55356b1672a8f03dc91
 
   const handleLogout = () => {
     logout()
@@ -130,7 +127,6 @@ export default function AdminPage() {
 }
 
 const s = {
-<<<<<<< HEAD
   page:     { minHeight: '100vh', background: '#f5f6f7' },
   header:   { background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '0 2rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   logoWrap: { display: 'flex', alignItems: 'center', gap: 4 },
@@ -146,7 +142,6 @@ const s = {
   botonesRow:  { display: 'flex', gap: 10 },
   btnCancelar: { flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer', color: '#555' },
   btnConfirmar:{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-=======
   page:            { minHeight: '100vh', background: '#f5f6f7' },
   header:          { background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '0 2rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   logoWrap:        { display: 'flex', alignItems: 'center', gap: 4 },
@@ -230,5 +225,4 @@ const s = {
     fontWeight: 600,
     cursor: 'pointer',
   },
->>>>>>> 163bb613299ef2f2436ae55356b1672a8f03dc91
 }
