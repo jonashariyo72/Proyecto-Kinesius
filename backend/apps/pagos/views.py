@@ -69,8 +69,8 @@ class IniciarPagoView(APIView):
             except Reserva.DoesNotExist:
                 return Response({'error': 'Reserva no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-            if reserva.estado != 'PENDIENTE':
-                return Response({'error': f'La reserva ya tiene estado {reserva.estado}.'}, status=status.HTTP_400_BAD_REQUEST)
+           # if reserva.estado != 'PENDIENTE':
+            #    return Response({'error': f'La reserva ya tiene estado {reserva.estado}.'}, status=status.HTTP_400_BAD_REQUEST)
 
             monto_total  = reserva.clase.precio
             monto_abonado = calcular_monto_abonado(tipo_pago, monto_total)

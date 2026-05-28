@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Clase
 from .serializers import ClaseSerializer
+from apps.reservas.models import Reserva
+from apps.pagos.models import PagoReserva
 
 
 class ClaseViewSet(viewsets.ModelViewSet):
@@ -48,16 +50,34 @@ class ClaseViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        """
-        HU#27 - Eliminar clase.
-        Hace un soft delete: marca la clase como inactiva en vez de borrarla,
-        para no perder el historial de reservas asociadas.
-        """
+    
+
         clase = self.get_object()
+
+        reservas = Reserva.objects.filter(
+            clase=clase,
+            estado__in=['CONFIRMADA', 'PENDIENTE']
+        )
+
+        devueltas = 0
+        for reserva in reservas:
+            try:
+                pago = reserva.pago
+                if pago.estado == 'aprobado' and pago.monto_devuelto == 0:
+                    pago.monto_devuelto = pago.monto_abonado
+                    pago.save()
+                    devueltas += 1
+            except PagoReserva.DoesNotExist:
+                pass
+
+            reserva.estado = 'CANCELADA'
+            reserva.save()
+
         clase.activa = False
         clase.save()
+
         return Response(
-            {'detail': 'Clase desactivada correctamente.'},
+            {'detail': f'Clase desactivada. {devueltas} devoluciones procesadas.'},
             status=status.HTTP_200_OK
         )
 

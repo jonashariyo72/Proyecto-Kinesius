@@ -46,7 +46,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 48px;
-  height: 72px;
+  height: 80px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(26, 92, 56, 0.08);
@@ -65,8 +65,8 @@ body {
 }
 
 .kn-nav-logo {
-  width: 40px;
-  height: 40px;
+  width: 80%;
+  height: 80px;
   border-radius: 10px;
   overflow: hidden;
   display: flex;
@@ -125,11 +125,14 @@ body {
 }
 
 .kn-btn-cta {
-  background: var(--yellow-accent);
+  background: white;
   color: var(--green-dark);
   font-weight: 700;
   border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
 }
+
 .kn-btn-cta:hover {
   background: var(--green-bright);
   color: white;
@@ -816,4 +819,94 @@ body {
   .kn-footer {
     padding: 48px 24px 32px;
   }
+}
+
+
+/* ── PLATAFORMA ── Agregar al final de KinesciusHome.css ── */
+
+.kn-platform {
+  background: #f0f7f0;
+  padding: 5rem 2rem;
+}
+
+.kn-platform-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.kn-platform-text p {
+  color: #555;
+  line-height: 1.75;
+  margin-bottom: 1rem;
+  font-size: 0.97rem;
+}
+
+.kn-platform-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.kn-platform-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.4rem 1.2rem;
+  box-shadow: 0 2px 12px rgba(45, 106, 45, 0.07);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.kn-platform-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(45, 106, 45, 0.13);
+}
+
+.kn-platform-icon {
+  font-size: 1.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.kn-platform-card h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.4rem;
+}
+
+.kn-platform-card p {
+  font-size: 0.83rem;
+  color: #777;
+  line-height: 1.55;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .kn-platform-inner {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+.kn-footer-socials {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.kn-social-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #aaa;
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s;
+}
+
+.kn-social-link:hover {
+  color: #fff;
 }

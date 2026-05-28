@@ -14,8 +14,8 @@ class ClaseSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'tipo', 'descripcion', 'dia', 'fecha_clase', 'hora_inicio',
             'duracion_minutos', 'capacidad_maxima', 'precio', 'activa',
-            'kinesiologo', 'kinesiologo_nombre', 'kinesiologo_email', 'cupos_disponibles',
-            'tiene_cupo', 'sala',
+            'kinesiologo', 'kinesiologo_nombre', 'kinesiologo_email',
+            'cupos_disponibles', 'tiene_cupo', 'sala',
         ]
 
     def get_cupos_disponibles(self, obj):
@@ -36,32 +36,77 @@ class ClaseSerializer(serializers.ModelSerializer):
 
     def validate_capacidad_maxima(self, value):
         if value <= 0:
-            raise serializers.ValidationError('La capacidad debe ser mayor a 0.')
+            raise serializers.ValidationError(
+                'La capacidad debe ser mayor a 0.'
+            )
         return value
 
     def validate_precio(self, value):
         if value < 0:
-            raise serializers.ValidationError('El precio no puede ser negativo.')
+            raise serializers.ValidationError(
+                'El precio no puede ser negativo.'
+            )
         return value
 
     def validate(self, data):
-        """Valida que no haya más de 3 kinesiólogos asignados al mismo día y hora."""
-        dia         = data.get('dia', getattr(self.instance, 'dia', None))
-        hora_inicio = data.get('hora_inicio', getattr(self.instance, 'hora_inicio', None))
 
+        fecha_clase = data.get(
+            'fecha_clase',
+            getattr(self.instance, 'fecha_clase', None)
+        )
+
+        hora_inicio = data.get(
+            'hora_inicio',
+            getattr(self.instance, 'hora_inicio', None)
+        )
+
+        sala = data.get(
+            'sala',
+            getattr(self.instance, 'sala', None)
+        )
+
+        kinesiologo = data.get(
+            'kinesiologo',
+            getattr(self.instance, 'kinesiologo', None)
+        )
+
+        # clases del mismo horario
         clases_mismo_turno = Clase.objects.filter(
-            dia=dia,
+            fecha_clase=fecha_clase,
             hora_inicio=hora_inicio,
             activa=True
         )
 
-        # Si es una actualización excluimos la instancia actual
+        # excluir instancia actual en edición
         if self.instance:
-            clases_mismo_turno = clases_mismo_turno.exclude(pk=self.instance.pk)
-
-        if clases_mismo_turno.count() >= 3:
-            raise serializers.ValidationError(
-                'Ya hay 3 kinesiólogos asignados a ese día y horario. No se pueden agregar más.'
+            clases_mismo_turno = clases_mismo_turno.exclude(
+                pk=self.instance.pk
             )
+
+        # validar sala ocupada
+        if sala and clases_mismo_turno.filter(sala=sala).exists():
+            raise serializers.ValidationError({
+                'sala': 'Ya existe una clase en esa sala para ese horario.'
+            })
+
+        # validar kinesiólogo ocupado
+        if (
+            kinesiologo and
+            clases_mismo_turno.filter(kinesiologo=kinesiologo).exists()
+        ):
+            raise serializers.ValidationError({
+                'kinesiologo': (
+                    'El kinesiólogo ya tiene una clase asignada en ese horario.'
+                )
+            })
+
+        # máximo 3 clases por horario
+        if clases_mismo_turno.count() >= 3:
+            raise serializers.ValidationError({
+                'hora_inicio': (
+                    'Ya existen 3 clases en ese horario. '
+                    'No se pueden agregar más.'
+                )
+            })
 
         return data

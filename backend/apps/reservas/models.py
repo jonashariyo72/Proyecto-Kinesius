@@ -1,7 +1,7 @@
 from django.db import models
 from apps.usuarios.models import Cliente
 from apps.clases.models import Clase
-
+from django.utils import timezone
 
 class Reserva(models.Model):
 
@@ -28,7 +28,25 @@ class Reserva(models.Model):
     estado = models.CharField(
         max_length=20,
         choices=ESTADOS,
-        default='PENDIENTE'
+        default='CONFIRMADA'
+    )
+    fecha_reserva = models.DateTimeField(default=timezone.now)
+
+    PAGO_CHOICES = (
+        ('TOTAL', 'Pago Total'),
+        ('SENIA', 'Seña'),
+    )
+
+    tipo_pago = models.CharField(
+        max_length=10,
+        choices=PAGO_CHOICES,
+        default='TOTAL'
+    )
+
+    saldo_a_favor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
 
     asistio = models.BooleanField(default=False)

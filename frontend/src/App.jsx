@@ -3,16 +3,16 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage    from './pages/LoginPage'
 import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
+import KinesciusHome from './pages/KinesciusHome'
 
 import ClientePage from './pages/ClientePage'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import RecuperarPasswordPage from './pages/RecuperarPasswordPage'
 
-
 import { PagoExitoso, PagoFallido, PagoPendiente } from './pages/PagoRetornoPages'
 
 
-// Redirige según el rol al entrar a "/"
+// Redirige según el rol al entrar a "/dashboard"
 function RutaInicio() {
   const { autenticado, rol } = useAuth()
   if (!autenticado) return <Navigate to="/login" replace />
@@ -35,8 +35,13 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/"        element={<RutaInicio />} />
-          <Route path="/login"   element={<LoginPage />} />
+          {/* Página principal pública */}
+          <Route path="/"        element={<KinesciusHome />} />
+
+          {/* Redirige al panel según rol una vez autenticado */}
+          <Route path="/dashboard" element={<RutaInicio />} />
+
+          <Route path="/login"    element={<LoginPage />} />
           <Route path="/registro" element={<RegistroPage />} />
 
           <Route path="/admin" element={
@@ -45,7 +50,6 @@ export default function App() {
             </RutaProtegida>
           } />
 
-          {/* Placeholder hasta que se creen esas páginas */}
           <Route path="/kinesiologo" element={
             <RutaProtegida rolRequerido="kinesiologo">
               <div style={{padding:'2rem'}}>Panel Kinesiólogo — próximamente</div>
@@ -66,10 +70,9 @@ export default function App() {
 
           <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
 
-
-<Route path="/pago-exitoso"   element={<PagoExitoso />} />
-<Route path="/pago-fallido"   element={<PagoFallido />} />
-<Route path="/pago-pendiente" element={<PagoPendiente />} />
+          <Route path="/pago-exitoso"   element={<PagoExitoso />} />
+          <Route path="/pago-fallido"   element={<PagoFallido />} />
+          <Route path="/pago-pendiente" element={<PagoPendiente />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
