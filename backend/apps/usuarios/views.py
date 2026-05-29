@@ -359,16 +359,89 @@ class RecuperarPasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        link = f"http://localhost:5173/reset-password?email={email}"
+        # send_mail(
+        #     subject='Recuperación de contraseña',
+        #     message=f'Ingresá al siguiente enlace para cambiar tu contraseña:\n\n{link}',
+        #     from_email='info@kinescius.com.ar',
+        #     recipient_list=[email],
+        #     fail_silently=True,
+        # )
+
         send_mail(
-            subject='Recuperación de contraseña',
-            message='Se solicitó recuperar la contraseña de tu cuenta.',
+            subject='Recuperación de contraseña - Kinescius',
+            message=f'Ingresá al siguiente enlace para cambiar tu contraseña: {link}',
             from_email='info@kinescius.com.ar',
             recipient_list=[email],
             fail_silently=True,
+            html_message=f'''
+                <h2>Recuperación de contraseña</h2>
+
+                <p>Hacé click en el botón para cambiar tu contraseña:</p>
+
+                <a href="{link}"
+                style="
+                    background:#2e7d32;
+                    color:white;
+                    padding:12px 20px;
+                    text-decoration:none;
+                    border-radius:8px;
+                    display:inline-block;
+                ">
+                Cambiar contraseña
+                </a>
+            '''
         )
 
         return Response(
             {'mensaje': 'Se envió el mail de recuperación'},
+            status=status.HTTP_200_OK
+        )
+    
+class ResetPasswordPublicView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        email = request.data.get('email')
+        password = request.data.get('password')
+        confirmar = request.data.get('confirmar')
+
+        if not email or not password or not confirmar:
+            return Response(
+                {'error': 'Por favor, complete todos los campos'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if password != confirmar:
+            return Response(
+                {'error': 'Las contraseñas no coinciden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = Usuario.objects.get(email=email)
+
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Usuario no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            validar_password2(password)
+
+        except Exception as e:
+            return Response(
+                {'error': e.detail[0]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(password)
+        user.save()
+
+        return Response(
+            {'mensaje': 'Contraseña actualizada correctamente'},
             status=status.HTTP_200_OK
         )
 
