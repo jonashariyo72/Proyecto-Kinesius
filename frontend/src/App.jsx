@@ -4,6 +4,7 @@ import LoginPage    from './pages/LoginPage'
 import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
 import KinesciusHome from './pages/KinesciusHome'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 import ClientePage from './pages/ClientePage'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
@@ -67,6 +68,8 @@ export default function App() {
               <CambiarPasswordPage />
             </RutaProtegida>
           }/>
+
+          <Route path="/reset-password" element={<ResetPasswordPage />}/>
 
           <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
 

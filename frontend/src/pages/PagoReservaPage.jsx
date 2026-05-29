@@ -105,17 +105,39 @@ function ElegirMetodoPago({ tipoPago, montoSena, montoTotal, saldoFavor, onElegi
 }
 
 // ─── Paso 3a: formulario tarjeta ──────────────────────────────────────────────
-function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVolver, cargando, error }) {
+function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onTarjetaInvalida, onVolver, cargando, error }) {
   const [tarjeta, setTarjeta] = useState({ numero: '', titular: '', vencimiento: '', cvv: '' })
   const [erroresTarjeta, setErroresTarjeta] = useState({})
 
   const monto = tipoPago === 'sena' ? montoSena : montoTotal
 
+  // Tarjetas válidas para la demo
+  const TARJETAS_VALIDAS = [
+    '5031755734530604', // Mastercard
+    '4509953566233704', // Visa
+  ]
+
   function validar() {
     const e = {}
-    if (tarjeta.numero.replace(/\s/g, '').length < 16) e.numero = 'Número de tarjeta inválido.'
+    const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
+    if (numeroLimpio.length < 16) e.numero = 'Número de tarjeta inválido.'
     if (!tarjeta.titular.trim()) e.titular = 'Ingresá el nombre del titular.'
-    if (!/^\d{2}\/\d{2}$/.test(tarjeta.vencimiento)) e.vencimiento = 'Formato: MM/AA.'
+    if (!/^\d{2}\/\d{2}$/.test(tarjeta.vencimiento)) {
+      e.vencimiento = 'Formato: MM/AA.'
+    } else {
+      const [mm, aa] = tarjeta.vencimiento.split('/').map(Number)
+      const ahora = new Date()
+      const expYear = 2000 + aa
+      const expMonth = mm // mes 1-12
+      if (mm < 1 || mm > 12) {
+        e.vencimiento = 'Mes inválido.'
+      } else if (
+        expYear < ahora.getFullYear() ||
+        (expYear === ahora.getFullYear() && expMonth < ahora.getMonth() + 1)
+      ) {
+        e.vencimiento = 'La tarjeta está vencida.'
+      }
+    }
     if (tarjeta.cvv.length < 3) e.cvv = 'CVV inválido.'
     return e
   }
@@ -124,6 +146,18 @@ function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVol
     e.preventDefault()
     const errores = validar()
     if (Object.keys(errores).length > 0) { setErroresTarjeta(errores); return }
+
+    const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
+    if (!TARJETAS_VALIDAS.includes(numeroLimpio)) {
+      onTarjetaInvalida()
+      return
+    }
+
+    if (tarjeta.cvv !== '123') {
+      onTarjetaInvalida()
+      return
+    }
+
     onConfirmar('TAR-SIM-' + Date.now())
   }
 
@@ -290,6 +324,25 @@ function EsperandoMercadoPago({ onPagoConfirmado }) {
   )
 }
 
+
+// ─── Paso 3d: pantalla de carga ───
+function ProcesandoPago() {
+  return (
+    <div className="pago-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 20 }}>
+      <div style={{
+        width: 56, height: 56,
+        border: '5px solid var(--borde)',
+        borderTop: '5px solid var(--acento, #4f8ef7)',
+        borderRadius: '50%',
+        animation: 'spin 0.9s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--texto)' }}>Procesando pago…</p>
+      <p style={{ fontSize: '0.85rem', color: 'var(--texto-suave)' }}>No cerrés esta ventana</p>
+    </div>
+  )
+}
+
 // ─── Paso 4: resultado ────────────────────────────────────────────────────────
 function ResultadoPago({ resultado, onReintentar }) {
   const { exito, mensaje, pago } = resultado
@@ -328,7 +381,7 @@ function ResultadoPago({ resultado, onReintentar }) {
         )}
 
         {!exito && (
-          <button className="btn-primary" style={{ marginTop: 20 }} onClick={onReintentar}>
+          <button className="btn-primary" style={{ marginTop: 20, width: '100%', fontSize: '1rem', padding: '14px' }} onClick={onReintentar}>
             Intentar de nuevo
           </button>
         )}
@@ -410,10 +463,32 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
     setCargando(false)
   }
 
+  async function handleTarjetaInvalida() {
+    setStep('procesando')
+    await new Promise(r => setTimeout(r, 1500))
+    setResultado({
+      exito: false,
+      mensaje: 'La tarjeta ingresada no es válida. Verificá los datos o probá con otra tarjeta.',
+    })
+    setStep('resultado')
+  }
+
   async function handleConfirmarTarjeta(idTransaccion) {
-    setCargando(true)
-    await procesarConfirmacion(pagoId, 'aprobado', idTransaccion)
-    setCargando(false)
+    setStep('procesando')
+    await new Promise(r => setTimeout(r, 1500))
+    try {
+      // Tarjeta simulada: confirmamos sin id_transaccion_externa para no verificar en MP
+      const { data } = await confirmarPago({
+        pagoId: pagoId,
+        estado: 'aprobado',
+      })
+      setResultado({ exito: true, mensaje: data.mensaje, pago: data.pago })
+      setStep('resultado')
+      onPagoExitoso?.(data.pago)
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Error al confirmar el pago.')
+      setStep('formulario-tarjeta')
+    }
   }
 
   async function procesarConfirmacion(pid, estado, idTransaccion) {
@@ -434,7 +509,7 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
   function handleReintentar() {
     setError('')
     setResultado(null)
-    setStep('elegir-metodo')
+    setStep('formulario-tarjeta')
   }
 
   // ── Callback de EsperandoMercadoPago: se llama cuando detecta el pago ──
@@ -488,6 +563,7 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
             montoSena={montoSena}
             montoTotal={montoTotal}
             onConfirmar={handleConfirmarTarjeta}
+            onTarjetaInvalida={handleTarjetaInvalida}
             onVolver={() => setStep('elegir-metodo')}
             cargando={cargando}
             error={error}
@@ -512,6 +588,8 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
             onPagoConfirmado={handlePagoMPConfirmado}
           />
         )}
+
+        {step === 'procesando' && <ProcesandoPago />}
 
         {step === 'resultado' && (
           <ResultadoPago

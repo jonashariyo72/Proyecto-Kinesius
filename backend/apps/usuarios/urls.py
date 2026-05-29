@@ -9,6 +9,7 @@ from .views import (
     PerfilClienteView,
     RecuperarPasswordView,
     ListaClientesView,
+    ResetPasswordPublicView,
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path('perfil/', PerfilClienteView.as_view(), name='perfil-cliente'),
     path('recuperar-password/', RecuperarPasswordView.as_view()),
     path('clientes/', ListaClientesView.as_view(), name='clientes'),
+    path('reset-password/', ResetPasswordPublicView.as_view()),
 ]
