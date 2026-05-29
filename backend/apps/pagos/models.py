@@ -13,6 +13,7 @@ class PagoReserva(models.Model):
     METODO_PAGO_CHOICES = [
         ('mercadopago', 'Mercado Pago'),
         ('tarjeta',     'Tarjeta'),
+        ('saldo',       'Saldo a Favor'),  # ← nuevo
     ]
 
     ESTADO_CHOICES = [
@@ -21,12 +22,11 @@ class PagoReserva(models.Model):
         ('rechazado', 'Rechazado'),
     ]
 
-    # OneToOne porque una reserva tiene un único pago
     monto_devuelto = models.DecimalField(
-    max_digits=10, decimal_places=2,
-    default=0,
-    help_text='Monto devuelto al cliente en caso de cancelación'
-)
+        max_digits=10, decimal_places=2,
+        default=0,
+        help_text='Monto devuelto al cliente en caso de cancelación'
+    )
     reserva = models.OneToOneField(
         Reserva,
         on_delete=models.CASCADE,
@@ -51,7 +51,6 @@ class PagoReserva(models.Model):
         help_text='Lo que efectivamente pagó: 50% si es seña, 100% si es total'
     )
 
-    # ID que devuelve MercadoPago o el gateway de tarjeta
     id_transaccion_externa = models.CharField(max_length=255, blank=True, null=True)
 
     creado_en      = models.DateTimeField(auto_now_add=True)

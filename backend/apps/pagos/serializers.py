@@ -15,6 +15,6 @@ class PagoReservaSerializer(serializers.ModelSerializer):
 
 
 class ConfirmarPagoSerializer(serializers.Serializer):
-    pago_id               = serializers.IntegerField()
-    estado                = serializers.ChoiceField(choices=['aprobado', 'rechazado'])
+    pago_id                = serializers.IntegerField()
+    estado                 = serializers.ChoiceField(choices=['aprobado', 'rechazado'])
     id_transaccion_externa = serializers.CharField(required=False, allow_blank=True)
