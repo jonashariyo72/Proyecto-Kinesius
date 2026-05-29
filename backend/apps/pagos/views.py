@@ -8,9 +8,9 @@ from .models import PagoReserva
 from .serializers import ConfirmarPagoSerializer, PagoReservaSerializer
 from apps.usuarios.permissions import EsAdministrador
 from .mp_service import generar_preferencia_mp, obtener_pago_mp, buscar_pago_por_external_reference
- 
 from apps.reservas.models import Reserva
-from decimal import Decimal
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 def calcular_monto_abonado(tipo_pago, monto_total):
@@ -29,14 +29,11 @@ class PagoMock:
         self.monto_total_clase = monto_total
         self.saldo_pendiente = monto_total - self.monto_abonado
 
-        # Validamos si el usuario es anónimo para evitar el error del email
         if user.is_anonymous:
-            # Creamos un usuario falso con un email de test
             usuario_falso = type('UserMock', (), {'email': 'test_manuel@example.com'})()
         else:
             usuario_falso = user
 
-        # Asociamos el usuario al cliente mock
         self.cliente = type('ClienteMock', (), {'usuario': usuario_falso})()
         self.reserva = type('ReservaMock', (), {'id': 999})()
 
@@ -50,18 +47,22 @@ class PagoMock:
 # ── Views ─────────────────────────────────────────────────────────────────────
 
 class IniciarPagoView(APIView):
-
-    authentication_classes = [] #esto esta solo para testear
+    authentication_classes = []  # solo para testear
     permission_classes = [AllowAny]
 
     def post(self, request):
-
         tipo_pago   = request.data.get('tipo_pago',   'sena')
         metodo_pago = request.data.get('metodo_pago', 'mercadopago')
         reserva_id  = request.data.get('reserva_id')
 
-        if reserva_id:
-            # ── Flujo real ──────────────────────────────────────────
+        # ── Flujo con saldo a favor ───────────────────────────────────────────
+        if metodo_pago == 'saldo':
+            if not reserva_id:
+                return Response(
+                    {'error': 'Se requiere reserva_id para pagar con saldo a favor.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             try:
                 reserva = Reserva.objects.select_related(
                     'paciente__usuario', 'clase'
@@ -69,13 +70,76 @@ class IniciarPagoView(APIView):
             except Reserva.DoesNotExist:
                 return Response({'error': 'Reserva no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-           # if reserva.estado != 'PENDIENTE':
-            #    return Response({'error': f'La reserva ya tiene estado {reserva.estado}.'}, status=status.HTTP_400_BAD_REQUEST)
+            cliente = reserva.paciente
 
-            monto_total  = reserva.clase.precio
+            # Sumar todo el saldo disponible del cliente
+            reservas_con_saldo = Reserva.objects.filter(
+                paciente=cliente,
+                estado='CANCELADA',
+                saldo_a_favor__gt=0
+            )
+            saldo_disponible = sum(r.saldo_a_favor for r in reservas_con_saldo) or Decimal('0')
+            monto_total = reserva.clase.precio
+
+            if saldo_disponible < monto_total:
+                return Response(
+                    {
+                        'error': 'Saldo insuficiente para cubrir el total de la clase.',
+                        'saldo_disponible': str(saldo_disponible),
+                        'monto_requerido':  str(monto_total),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Descontar el saldo de las reservas canceladas (de la más antigua a la más nueva)
+            restante = monto_total
+            for r in reservas_con_saldo.order_by('fecha_creacion'):
+                if restante <= 0:
+                    break
+                if r.saldo_a_favor >= restante:
+                    r.saldo_a_favor -= restante
+                    restante = Decimal('0')
+                else:
+                    restante -= r.saldo_a_favor
+                    r.saldo_a_favor = Decimal('0')
+                r.save()
+
+            # Crear el pago y confirmar la reserva directamente
+            pago = PagoReserva.objects.create(
+                reserva=reserva,
+                cliente=cliente,
+                tipo_pago='total',
+                metodo_pago='saldo',
+                monto_total_clase=monto_total,
+                monto_abonado=monto_total,
+                estado='aprobado',
+            )
+            reserva.estado = 'CONFIRMADA'
+            reserva.save()
+
+            return Response(
+                {
+                    'mensaje':       'Pago con saldo a favor aprobado. Reserva confirmada.',
+                    'pago_id':       pago.pk,
+                    'monto_abonado': str(pago.monto_abonado),
+                    'pago':          PagoReservaSerializer(pago).data,
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        # ── Flujo real (MP / tarjeta) ─────────────────────────────────────────
+        if reserva_id:
+            try:
+                reserva = Reserva.objects.select_related(
+                    'paciente__usuario', 'clase'
+                ).get(pk=reserva_id)
+            except Reserva.DoesNotExist:
+                return Response({'error': 'Reserva no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+            monto_total   = reserva.clase.precio
             monto_abonado = calcular_monto_abonado(tipo_pago, monto_total)
 
-            # Crear o reutilizar el PagoReserva
+            # Reutilizar pago existente solo si sigue pendiente
             pago_obj, created = PagoReserva.objects.get_or_create(
                 reserva=reserva,
                 defaults={
@@ -89,7 +153,10 @@ class IniciarPagoView(APIView):
             )
 
             if not created and pago_obj.estado == 'aprobado':
-                return Response({'error': 'Esta reserva ya tiene un pago aprobado.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Esta reserva ya tiene un pago aprobado.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             respuesta = {
                 'pago_id':         pago_obj.pk,
@@ -101,8 +168,8 @@ class IniciarPagoView(APIView):
                 'mp_init_point':   None,
             }
 
+        # ── Flujo mock ────────────────────────────────────────────────────────
         else:
-            # ── Flujo mock (queda igual que antes) ──────────────────
             monto_raw = request.data.get('monto_total_clase')
             try:
                 monto_total = Decimal(str(monto_raw)) if monto_raw else Decimal('1000')
@@ -148,25 +215,26 @@ class ConfirmarPagoView(APIView):
         except PagoReserva.DoesNotExist:
             return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        cliente  = getattr(request.user, 'cliente', None)
-        es_admin = hasattr(request.user, 'administrador')
         if request.user.is_authenticated:
             cliente  = getattr(request.user, 'cliente', None)
             es_admin = hasattr(request.user, 'administrador')
             if not es_admin and (not cliente or pago.cliente != cliente):
-                return Response({'error': 'No tenés permiso para confirmar este pago.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'No tenés permiso para confirmar este pago.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         if pago.estado != 'pendiente':
-            return Response({'error': f'El pago ya fue procesado: {pago.get_estado_display()}.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {'error': f'El pago ya fue procesado: {pago.get_estado_display()}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         estado_final = data['estado']
 
         if data.get('id_transaccion_externa'):
             pago_mp = obtener_pago_mp(data['id_transaccion_externa'])
-            if pago_mp.get('status') == 'approved':
-                estado_final = 'aprobado'
-            else:
-                estado_final = 'rechazado'
+            estado_final = 'aprobado' if pago_mp.get('status') == 'approved' else 'rechazado'
 
         pago.estado = estado_final
         if data.get('id_transaccion_externa'):
@@ -174,15 +242,20 @@ class ConfirmarPagoView(APIView):
         pago.save()
 
         if pago.estado == 'aprobado':
+            # La reserva se confirma recién acá, cuando el pago se aprueba
             pago.reserva.estado = 'CONFIRMADA'
             pago.reserva.save()
         else:
+            # Si el pago se rechaza, no queda ningún rastro
             reserva = pago.reserva
             pago.delete()
             reserva.delete()
 
         return Response(
-            {'mensaje': f'Pago {pago.get_estado_display()} correctamente.', 'pago': PagoReservaSerializer(pago).data},
+            {
+                'mensaje': f'Pago {pago.get_estado_display()} correctamente.',
+                'pago':    PagoReservaSerializer(pago).data,
+            },
             status=status.HTTP_200_OK
         )
 
@@ -210,8 +283,10 @@ class MisPagosView(APIView):
     def get(self, request):
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
-            return Response({'error': 'Solo los clientes pueden ver su historial.'}, status=status.HTTP_403_FORBIDDEN)
-
+            return Response(
+                {'error': 'Solo los clientes pueden ver su historial.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         pagos = PagoReserva.objects.filter(cliente=cliente).select_related('reserva')
         return Response(PagoReservaSerializer(pagos, many=True).data)
 
@@ -225,32 +300,32 @@ class PagosAdminView(APIView):
         if estado in ['pendiente', 'aprobado', 'rechazado']:
             pagos = pagos.filter(estado=estado)
         return Response(PagoReservaSerializer(pagos, many=True).data)
-    
-    
+
+
 class SaldoFavorView(APIView):
     """
     GET /api/pagos/saldo-favor/
-    Devuelve el saldo a favor disponible del cliente autenticado,
-    sumando el saldo_a_favor de todas sus reservas canceladas.
+    Devuelve el saldo a favor disponible del cliente autenticado.
     """
     permission_classes = [IsAuthenticated]
- 
+
     def get(self, request):
-        from apps.reservas.models import Reserva
-        from decimal import Decimal
- 
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
-            return Response({'error': 'Solo los clientes pueden consultar su saldo.'}, status=status.HTTP_403_FORBIDDEN)
- 
-        reservas_canceladas = Reserva.objects.filter(
+            return Response(
+                {'error': 'Solo los clientes pueden consultar su saldo.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        reservas_con_saldo = Reserva.objects.filter(
             paciente=cliente,
             estado='CANCELADA',
             saldo_a_favor__gt=0
         )
-        total_saldo = sum(r.saldo_a_favor for r in reservas_canceladas) or Decimal('0')
- 
+        total_saldo = sum(r.saldo_a_favor for r in reservas_con_saldo) or Decimal('0')
+
         return Response({'saldo_disponible': str(total_saldo)})
+
 
 class VerificarPagoMPView(APIView):
     permission_classes = [AllowAny]
@@ -281,6 +356,7 @@ class VerificarPagoMPView(APIView):
 
             return Response({'estado': 'aprobado'}, status=status.HTTP_200_OK)
 
+        # Pago rechazado: limpiar todo
         reserva = pago.reserva
         pago.delete()
         reserva.delete()
