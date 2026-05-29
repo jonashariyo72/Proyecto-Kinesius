@@ -10,6 +10,18 @@
     lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
     jueves: 'Jueves', viernes: 'Viernes',
   }
+
+  const ORDEN_DIAS = {
+  lunes: 1,
+  martes: 2,
+  miercoles: 3,
+  miércoles: 3,
+  jueves: 4,
+  viernes: 5,
+  }
+
+  const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
+
   const TIPOS = {
     tren_inferior: 'Tren Inferior',
     zona_media: 'Zona Media',
@@ -185,6 +197,7 @@
     const [modalEspera, setModalEspera] = useState(null)   // clase sin cupo
     const [pacienteId, setPacienteId]   = useState(null)
     const [toast, setToast]             = useState('')
+    const [nombreUsuario, setNombreUsuario] = useState('')
 
     const mostrarToast = (msg) => {
       setToast(msg)
@@ -194,7 +207,17 @@
     // Obtener ID del paciente desde el token / perfil
     useEffect(() => {
       api.get('/usuarios/perfil/')
-        .then(res => setPacienteId(res.data.id))
+        .then(res => {
+          setPacienteId(res.data.id)
+          setNombreUsuario(
+          res.data.nombre ||
+          res.data.usuario?.nombre ||
+          res.data.user?.nombre ||
+          res.data.cliente?.usuario?.nombre ||
+          res.data.email?.split('@')[0] ||
+          ''
+        )
+        })
         .catch(() => {})
     }, [])
 
@@ -274,7 +297,21 @@
     const [confirmarLogout, setConfirmarLogout] = useState(false)
     const handleLogout = () => { logout(); navigate('/login') }
     
-    
+    const clasesOrdenadas = [...clases].sort((a, b) => {
+    const diaA = ORDEN_DIAS[a.dia?.toLowerCase()] ?? 99
+    const diaB = ORDEN_DIAS[b.dia?.toLowerCase()] ?? 99
+
+    if (diaA !== diaB) return diaA - diaB
+
+    return (a.hora_inicio ?? '').localeCompare(b.hora_inicio ?? '')
+  })
+
+    const clasesPorDia = DIAS_SEMANA.map(dia => ({
+    dia,
+    nombre: DIAS[dia],
+    clases: clasesOrdenadas.filter(c => c.dia === dia),
+  })).filter(grupo => grupo.clases.length > 0)
+
     if (pagoActivo) {
       return (
         <PagoReservaPage
@@ -295,7 +332,9 @@
           <div style={s.logoWrap}>
             <span style={s.logoK}>K</span>
             <span style={s.logoRest}>INESCIUS</span>
-            <span style={s.badgeRol}>Cliente</span>
+            <span style={s.badgeRol}>
+              {nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hola'}
+            </span>
           </div>
 
           <nav style={s.nav}>
@@ -347,46 +386,63 @@
                 <p style={s.estado}>No hay clases disponibles por el momento.</p>
               )}
 
-              <div style={s.grid}>
-                {clases.map(c => (
-                  <div key={c.id} style={{ ...s.card, opacity: c.activa ? 1 : 0.5 }}>
-                    <div style={s.cardTop}>
-                      <span style={s.badgeTipo}>{TIPOS[c.tipo] ?? c.tipo}</span>
-                      <span style={{ ...s.cupoTag, color: c.tiene_cupo ? '#2d6a2d' : '#c0392b' }}>
-                        {c.tiene_cupo
-                          ? `${c.cupos_disponibles} cupo${c.cupos_disponibles !== 1 ? 's' : ''}`
-                          : 'Sin cupo'}
+              <div style={s.semanaWrap}>
+                {clasesPorDia.map(grupo => (
+                  <section key={grupo.dia} style={s.diaSection}>
+                    <div style={s.diaHeader}>
+                      <h2 style={s.diaTitulo}>{grupo.nombre}</h2>
+                      <span style={s.diaCantidad}>
+                        {grupo.clases.length} clase{grupo.clases.length !== 1 ? 's' : ''}
                       </span>
                     </div>
 
-                    <div style={s.cardMid}>
-                      <span style={s.diaTag}>{DIAS[c.dia] ?? c.dia}</span>
-                      <span style={s.horaTag}>{c.hora_inicio?.slice(0,5)} hs</span>
+                    <div style={s.diaCards}>
+                      {grupo.clases.map(c => (
+                        <div key={c.id} style={{ ...s.cardModerna, opacity: c.activa ? 1 : 0.5 }}>
+                          <div style={s.cardTop}>
+                            <span style={s.badgeTipo}>{TIPOS[c.tipo] ?? c.tipo}</span>
+                            <span style={{ ...s.cupoTag, color: c.tiene_cupo ? '#2d6a2d' : '#c0392b' }}>
+                              {c.tiene_cupo
+                                ? `${c.cupos_disponibles} cupo${c.cupos_disponibles !== 1 ? 's' : ''}`
+                                : 'Sin cupo'}
+                            </span>
+                          </div>
+
+                          <div style={s.horaBloque}>
+                            <span style={s.horaGrande}>{c.hora_inicio?.slice(0,5)}</span>
+                            <span style={s.hsTexto}>hs</span>
+                          </div>
+
+                          <div style={s.metaGrid}>
+                            {c.kinesiologo_nombre && (
+                              <p style={s.metaItem}><IconUser /> {c.kinesiologo_nombre}</p>
+                            )}
+                            {c.sala && (
+                              <p style={s.metaItem}>🚪 Sala {c.sala}</p>
+                            )}
+                          </div>
+
+                          <div style={s.cardFooter}>
+                            <span style={s.precioPill}>
+                              ${parseFloat(c.precio).toLocaleString('es-AR')}
+                            </span>
+
+                            {c.activa && (
+                              <button
+                                style={{
+                                  ...s.btnReservarCompacto,
+                                  ...(c.tiene_cupo ? {} : s.btnEspera)
+                                }}
+                                onClick={() => c.tiene_cupo ? handleReservar(c) : setModalEspera(c)}
+                              >
+                                {c.tiene_cupo ? 'Reservar' : 'Lista de espera'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-
-                    {c.kinesiologo_nombre && (
-                      <p style={s.infoRow}><IconUser /> {c.kinesiologo_nombre}</p>
-                    )}
-                    {c.sala && (
-                      <p style={s.infoRow}>🚪 Sala {c.sala}</p>
-                    )}
-
-                    <p style={s.precioTag}>
-                      ${parseFloat(c.precio).toLocaleString('es-AR')}
-                    </p>
-
-                    {c.activa && (
-                      <button
-                        style={{
-                          ...s.btnReservar,
-                          ...(c.tiene_cupo ? {} : s.btnEspera)
-                        }}
-                        onClick={() => c.tiene_cupo ? handleReservar(c) : setModalEspera(c)}
-                      >
-                        {c.tiene_cupo ? 'Reservar' : 'Anotarme a lista de espera'}
-                      </button>
-                    )}
-                  </div>
+                  </section>
                 ))}
               </div>
             </>
@@ -634,4 +690,122 @@
     },
     msgOk:    { color: '#2d6a2d', fontWeight: 600, fontSize: 14, margin: 0 },
     msgError: { color: '#c0392b', fontSize: 13, margin: 0 },
+
+      semanaWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 22,
+  },
+
+  diaSection: {
+    background: '#fff',
+    border: '1px solid #e6e8e6',
+    borderRadius: 14,
+    padding: '1rem',
+  },
+
+  diaHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottom: '1px solid #eef0ee',
+    paddingBottom: 10,
+  },
+
+  diaTitulo: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#1f3d1f',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+
+  diaCantidad: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#6b7280',
+    background: '#f3f4f6',
+    padding: '4px 10px',
+    borderRadius: 999,
+  },
+
+  diaCards: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    gap: 12,
+  },
+
+  cardModerna: {
+    background: '#fbfcfb',
+    borderRadius: 12,
+    border: '1px solid #e3e8e3',
+    padding: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+
+  horaBloque: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+
+  horaGrande: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: '#2d6a2d',
+  },
+
+  hsTexto: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#2d6a2d',
+  },
+
+  metaGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+
+  metaItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 13,
+    color: '#4b5563',
+    margin: 0,
+  },
+
+  cardFooter: {
+    marginTop: 'auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  precioPill: {
+    fontSize: 13,
+    fontWeight: 800,
+    color: '#9a6b00',
+    background: '#fff7d6',
+    border: '1px solid #f0d060',
+    padding: '5px 9px',
+    borderRadius: 999,
+  },
+
+  btnReservarCompacto: {
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#2d6a2d',
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
   }

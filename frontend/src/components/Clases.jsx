@@ -631,6 +631,7 @@ export default function Clases({ precioPorDefecto = 15000 }) {
               ¿Estás seguro que querés eliminar esta clase?
             </p>
 
+          {modalEliminar.capacidad_maxima - modalEliminar.cupos_disponibles > 0 && (
             <div style={s.avisoRojo}>
               <p
                 style={{
@@ -643,7 +644,7 @@ export default function Clases({ precioPorDefecto = 15000 }) {
                 las devoluciones automáticamente.
               </p>
             </div>
-
+        )}
             <div
               style={{
                 display: 'flex',

@@ -24,7 +24,7 @@ def generar_preferencia_mp(pago_obj):
     preference_data = {
         "items": [
             {
-                "title": f"Pago Reserva Kinescius - ID {pago_obj.reserva.id}",
+                "title": f"Pago Reserva Kinescius - Clase {pago_obj.reserva.clase.tipo} - {pago_obj.reserva.clase.dia.capitalize()} {pago_obj.reserva.clase.hora_inicio.strftime('%H:%M')}",
                 "quantity": 1,
                 "unit_price": float(pago_obj.monto_abonado),
                 "currency_id": "ARS",

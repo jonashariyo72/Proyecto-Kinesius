@@ -274,10 +274,16 @@ function EsperandoMercadoPago({ onPagoConfirmado }) {
   }
 
   return (
-    <div className="pago-spinner-wrap">
-      <p>Cuando termines el pago en Mercado Pago, volvé acá y tocá verificar.</p>
+    <div className="pago-confirmacion-wrap">
+      <div className="pago-confirmacion-icon">✓</div>
+
+      <h2 className="pago-confirmacion-title">
+        Confirmar la operación, por favor
+      </h2>
+
       {error && <p className="auth-error">{error}</p>}
-      <button className="btn-primary" onClick={verificar} disabled={verificando}>
+
+      <button className="btn-primary pago-confirmacion-btn" onClick={verificar} disabled={verificando}>
         {verificando ? 'Verificando...' : 'Confirmar'}
       </button>
     </div>
