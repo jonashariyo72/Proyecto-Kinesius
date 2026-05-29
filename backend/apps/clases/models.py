@@ -39,7 +39,7 @@ class Clase(models.Model):
 
     class Meta:
         verbose_name = 'Clase'
-        ordering = ['dia', 'hora_inicio']
+        ordering = ['fecha_clase', 'hora_inicio']
 
     def __str__(self):
         return f'{self.get_tipo_display()} - {self.get_dia_display()} {self.hora_inicio}'

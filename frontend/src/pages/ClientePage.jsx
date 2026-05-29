@@ -22,6 +22,19 @@
 
   const DIAS_SEMANA = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
 
+  function parseFechaLocal(fecha) {
+  if (!fecha) return null
+  const limpia = fecha.split('T')[0]
+  const [year, month, day] = limpia.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function formatFechaCorta(fecha) {
+  const date = parseFechaLocal(fecha)
+  if (!date) return ''
+  return `${date.getDate()}/${date.getMonth() + 1}`
+}
+
   const TIPOS = {
     tren_inferior: 'Tren Inferior',
     zona_media: 'Zona Media',
@@ -306,11 +319,26 @@
     return (a.hora_inicio ?? '').localeCompare(b.hora_inicio ?? '')
   })
 
-    const clasesPorDia = DIAS_SEMANA.map(dia => ({
-    dia,
-    nombre: DIAS[dia],
-    clases: clasesOrdenadas.filter(c => c.dia === dia),
-  })).filter(grupo => grupo.clases.length > 0)
+    const clasesPorDia = DIAS_SEMANA.map(dia => {
+    const clasesDelDia = clases
+      .filter(c => c.dia === dia)
+      .sort((a, b) => {
+        const fechaA = parseFechaLocal(a.fecha_clase)
+        const fechaB = parseFechaLocal(b.fecha_clase)
+
+        if (fechaA && fechaB && fechaA.getTime() !== fechaB.getTime()) {
+          return fechaA - fechaB
+        }
+
+        return (a.hora_inicio ?? '').localeCompare(b.hora_inicio ?? '')
+      })
+
+    return {
+      dia,
+      nombre: DIAS[dia],
+      clases: clasesDelDia,
+    }
+  }).filter(grupo => grupo.clases.length > 0)
 
     if (pagoActivo) {
       return (
@@ -408,6 +436,9 @@
                             </span>
                           </div>
 
+                          <p style={s.fechaClase}>
+                            {DIAS[c.dia] ?? c.dia} {formatFechaCorta(c.fecha_clase)}
+                          </p>
                           <div style={s.horaBloque}>
                             <span style={s.horaGrande}>{c.hora_inicio?.slice(0,5)}</span>
                             <span style={s.hsTexto}>hs</span>
@@ -732,9 +763,10 @@
   },
 
   diaCards: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    display: 'flex',
     gap: 12,
+    overflowX: 'auto',
+    paddingBottom: 6,
   },
 
   cardModerna: {
@@ -745,6 +777,8 @@
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    minWidth: 280,
+    maxWidth: 280,
   },
 
   horaBloque: {
@@ -807,5 +841,12 @@
     fontSize: 13,
     fontWeight: 700,
     cursor: 'pointer',
+  },
+
+    fechaClase: {
+    margin: 0,
+    fontSize: 13,
+    fontWeight: 800,
+    color: '#1f3d1f',
   },
   }
