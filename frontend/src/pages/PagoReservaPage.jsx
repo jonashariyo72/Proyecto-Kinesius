@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { iniciarPago, confirmarPago, getDetallePago, verificarPagoMP } from '../services/pagoService'
+   import { iniciarPago, confirmarPago, getDetallePago, verificarPagoMP, confirmarPagoSaldo } from '../services/pagoService'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 import '../styles/pago.css'
@@ -53,8 +53,9 @@ function ElegirTipoPago({ montoTotal, montoSena, onElegir }) {
 
 // ─── Paso 2: elegir método ────────────────────────────────────────────────────
 function ElegirMetodoPago({ tipoPago, montoSena, montoTotal, saldoFavor, onElegir, onVolver, cargando, error }) {
-  const monto = tipoPago === 'sena' ? montoSena : montoTotal
-  const saldoAlcanza = saldoFavor >= monto
+  const esSena = tipoPago === 'sena' || tipoPago === 'SENIA'
+  const monto = esSena ? montoSena : montoTotal
+  const saldoAlcanza = Number(saldoFavor) >= Number(monto)
 
   return (
     <div className="pago-body">
@@ -83,7 +84,7 @@ function ElegirMetodoPago({ tipoPago, montoSena, montoTotal, saldoFavor, onElegi
           className={`pago-metodo-btn pago-metodo-btn--saldo ${!saldoAlcanza ? 'pago-metodo-btn--disabled' : ''}`}
           onClick={() => saldoAlcanza && onElegir('saldo')}
           disabled={cargando || !saldoAlcanza}
-          title={!saldoAlcanza ? `Tu saldo (${formatARS(saldoFavor)}) no alcanza para cubrir ${formatARS(monto)}` : ''}
+          title={!saldoAlcanza ? `Saldo insuficiente para cubrir ${esSena ? 'la seña' : 'el total'} de la clase.` : ''}
         >
           <span>🏦</span>
           <span className="pago-metodo-label">Saldo a favor</span>
@@ -105,39 +106,17 @@ function ElegirMetodoPago({ tipoPago, montoSena, montoTotal, saldoFavor, onElegi
 }
 
 // ─── Paso 3a: formulario tarjeta ──────────────────────────────────────────────
-function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onTarjetaInvalida, onVolver, cargando, error }) {
+function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVolver, cargando, error }) {
   const [tarjeta, setTarjeta] = useState({ numero: '', titular: '', vencimiento: '', cvv: '' })
   const [erroresTarjeta, setErroresTarjeta] = useState({})
 
   const monto = tipoPago === 'sena' ? montoSena : montoTotal
 
-  // Tarjetas válidas para la demo
-  const TARJETAS_VALIDAS = [
-    '5031755734530604', // Mastercard
-    '4509953566233704', // Visa
-  ]
-
   function validar() {
     const e = {}
-    const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
-    if (numeroLimpio.length < 16) e.numero = 'Número de tarjeta inválido.'
+    if (tarjeta.numero.replace(/\s/g, '').length < 16) e.numero = 'Número de tarjeta inválido.'
     if (!tarjeta.titular.trim()) e.titular = 'Ingresá el nombre del titular.'
-    if (!/^\d{2}\/\d{2}$/.test(tarjeta.vencimiento)) {
-      e.vencimiento = 'Formato: MM/AA.'
-    } else {
-      const [mm, aa] = tarjeta.vencimiento.split('/').map(Number)
-      const ahora = new Date()
-      const expYear = 2000 + aa
-      const expMonth = mm // mes 1-12
-      if (mm < 1 || mm > 12) {
-        e.vencimiento = 'Mes inválido.'
-      } else if (
-        expYear < ahora.getFullYear() ||
-        (expYear === ahora.getFullYear() && expMonth < ahora.getMonth() + 1)
-      ) {
-        e.vencimiento = 'La tarjeta está vencida.'
-      }
-    }
+    if (!/^\d{2}\/\d{2}$/.test(tarjeta.vencimiento)) e.vencimiento = 'Formato: MM/AA.'
     if (tarjeta.cvv.length < 3) e.cvv = 'CVV inválido.'
     return e
   }
@@ -146,18 +125,6 @@ function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onTar
     e.preventDefault()
     const errores = validar()
     if (Object.keys(errores).length > 0) { setErroresTarjeta(errores); return }
-
-    const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
-    if (!TARJETAS_VALIDAS.includes(numeroLimpio)) {
-      onTarjetaInvalida()
-      return
-    }
-
-    if (tarjeta.cvv !== '123') {
-      onTarjetaInvalida()
-      return
-    }
-
     onConfirmar('TAR-SIM-' + Date.now())
   }
 
@@ -316,29 +283,10 @@ function EsperandoMercadoPago({ onPagoConfirmado }) {
       </h2>
 
       {error && <p className="auth-error">{error}</p>}
-
+    
       <button className="btn-primary pago-confirmacion-btn" onClick={verificar} disabled={verificando}>
         {verificando ? 'Verificando...' : 'Confirmar'}
       </button>
-    </div>
-  )
-}
-
-
-// ─── Paso 3d: pantalla de carga ───
-function ProcesandoPago() {
-  return (
-    <div className="pago-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 20 }}>
-      <div style={{
-        width: 56, height: 56,
-        border: '5px solid var(--borde)',
-        borderTop: '5px solid var(--acento, #4f8ef7)',
-        borderRadius: '50%',
-        animation: 'spin 0.9s linear infinite',
-      }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--texto)' }}>Procesando pago…</p>
-      <p style={{ fontSize: '0.85rem', color: 'var(--texto-suave)' }}>No cerrés esta ventana</p>
     </div>
   )
 }
@@ -381,7 +329,7 @@ function ResultadoPago({ resultado, onReintentar }) {
         )}
 
         {!exito && (
-          <button className="btn-primary" style={{ marginTop: 20, width: '100%', fontSize: '1rem', padding: '14px' }} onClick={onReintentar}>
+          <button className="btn-primary" style={{ marginTop: 20 }} onClick={onReintentar}>
             Intentar de nuevo
           </button>
         )}
@@ -414,81 +362,73 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
     setStep('elegir-metodo')
   }
 
-  async function handleElegirMetodo(metodo) {
-    setError('')
+async function handleElegirMetodo(metodo) {
+  setError('')
+
+  if (metodo === 'saldo') {
+    setStep('confirmar-saldo')
+    return
+  }
+
+  setCargando(true)
+
+  try {
+    const { data } = await iniciarPago({
+      reservaId,
+      tipoPago,
+      metodoPago: metodo,
+      montoTotalClase: montoTotal,
+    })
+
+    setPagoId(data.pago_id)
+
+    if (metodo === 'mercadopago') {
+      if (data.mp_init_point) {
+        sessionStorage.setItem('mp_pago_id', data.pago_id)
+        window.open(data.mp_init_point, '_blank')
+        setStep('esperando-mp')
+      } else {
+        setError('No se pudo generar el link de Mercado Pago.')
+      }
+    } else if (metodo === 'tarjeta') {
+      setStep('formulario-tarjeta')
+    }
+  } catch (err) {
+    setError(err.response?.data?.error ?? 'Error al iniciar el pago.')
+  } finally {
+    setCargando(false)
+  }
+}
+
+  async function handleConfirmarSaldo() {
     setCargando(true)
+    setError('')
+
     try {
-      const { data } = await iniciarPago({
+      const { data } = await confirmarPagoSaldo({
         reservaId,
         tipoPago,
-        metodoPago:      metodo,
-        montoTotalClase: montoTotal,
       })
-      setPagoId(data.pago_id)
 
-      if (metodo === 'mercadopago') {
-        if (data.mp_init_point) {
-          sessionStorage.setItem('mp_pago_id', data.pago_id)
-          window.open(data.mp_init_point, '_blank')
-          setStep('esperando-mp')
-        } else {
-          setError('No se pudo generar el link de Mercado Pago.')
-        }
-      } else if (metodo === 'saldo') {
-        setStep('confirmar-saldo')
-      } else {
-        setStep('formulario-tarjeta')
-      }
+      setResultado({
+        exito: true,
+        mensaje: data.mensaje,
+        pago: data.pago,
+      })
+
+      setStep('resultado')
+      onPagoExitoso?.(data.pago)
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Error al iniciar el pago.')
+      setError(err.response?.data?.error ?? 'No se pudo confirmar el pago con saldo.')
     } finally {
       setCargando(false)
     }
   }
 
-  async function handleConfirmarSaldo() {
-    setCargando(true)
-    setResultado({
-      exito: true,
-      mensaje: 'Tu reserva fue confirmada usando saldo a favor.',
-      pago: {
-        tipo_pago_display:   tipoPago === 'sena' ? 'Seña (50%)' : 'Total',
-        metodo_pago_display: 'Saldo a favor',
-        monto_abonado:       tipoPago === 'sena' ? montoSena : montoTotal,
-        saldo_pendiente:     tipoPago === 'sena' ? montoSena : 0,
-      },
-    })
-    setStep('resultado')
-    onPagoExitoso?.({ metodo: 'saldo' })
-    setCargando(false)
-  }
-
-  async function handleTarjetaInvalida() {
-    setStep('procesando')
-    await new Promise(r => setTimeout(r, 1500))
-    setResultado({
-      exito: false,
-      mensaje: 'La tarjeta ingresada no es válida. Verificá los datos o probá con otra tarjeta.',
-    })
-    setStep('resultado')
-  }
-
   async function handleConfirmarTarjeta(idTransaccion) {
-    setStep('procesando')
-    await new Promise(r => setTimeout(r, 1500))
-    try {
-      // Tarjeta simulada: confirmamos sin id_transaccion_externa para no verificar en MP
-      const { data } = await confirmarPago({
-        pagoId: pagoId,
-        estado: 'aprobado',
-      })
-      setResultado({ exito: true, mensaje: data.mensaje, pago: data.pago })
-      setStep('resultado')
-      onPagoExitoso?.(data.pago)
-    } catch (err) {
-      setError(err.response?.data?.error ?? 'Error al confirmar el pago.')
-      setStep('formulario-tarjeta')
-    }
+    setCargando(true)
+    await procesarConfirmacion(pagoId, 'aprobado', idTransaccion)
+    setCargando(false)
   }
 
   async function procesarConfirmacion(pid, estado, idTransaccion) {
@@ -509,7 +449,7 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
   function handleReintentar() {
     setError('')
     setResultado(null)
-    setStep('formulario-tarjeta')
+    setStep('elegir-metodo')
   }
 
   // ── Callback de EsperandoMercadoPago: se llama cuando detecta el pago ──
@@ -563,7 +503,6 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
             montoSena={montoSena}
             montoTotal={montoTotal}
             onConfirmar={handleConfirmarTarjeta}
-            onTarjetaInvalida={handleTarjetaInvalida}
             onVolver={() => setStep('elegir-metodo')}
             cargando={cargando}
             error={error}
@@ -588,8 +527,6 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
             onPagoConfirmado={handlePagoMPConfirmado}
           />
         )}
-
-        {step === 'procesando' && <ProcesandoPago />}
 
         {step === 'resultado' && (
           <ResultadoPago

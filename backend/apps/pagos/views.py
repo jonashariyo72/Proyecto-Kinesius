@@ -326,6 +326,87 @@ class SaldoFavorView(APIView):
 
         return Response({'saldo_disponible': str(total_saldo)})
 
+class ConfirmarPagoSaldoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        reserva_id = request.data.get('reserva_id')
+        tipo_pago = request.data.get('tipo_pago', 'sena')
+        print("=== PAGO CON SALDO ===")
+        print("DATA:", request.data)
+        print("tipo_pago recibido:", tipo_pago)
+        tipo_pago = str(tipo_pago).lower()
+
+        if tipo_pago not in ['sena', 'total']:
+            return Response({'error': 'Tipo de pago inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not reserva_id:
+            return Response({'error': 'Falta reserva_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            reserva = Reserva.objects.select_related('paciente', 'clase').get(pk=reserva_id)
+        except Reserva.DoesNotExist:
+            return Response({'error': 'Reserva no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        cliente = getattr(request.user, 'cliente', None)
+        if not cliente or reserva.paciente != cliente:
+            return Response({'error': 'No tenés permiso para pagar esta reserva.'}, status=status.HTTP_403_FORBIDDEN)
+
+        monto_total = reserva.clase.precio
+        monto_a_pagar = calcular_monto_abonado(tipo_pago, monto_total)
+        print("monto_total:", monto_total)
+        print("monto_a_pagar:", monto_a_pagar)
+        print("======================")
+
+        reservas_con_saldo = Reserva.objects.filter(
+            paciente=cliente,
+            estado='CANCELADA',
+            saldo_a_favor__gt=0
+        ).order_by('fecha_creacion')
+
+        saldo_disponible = sum(r.saldo_a_favor for r in reservas_con_saldo)
+
+        if saldo_disponible < monto_a_pagar:
+            return Response({'error': 'Saldo a favor insuficiente.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        restante = monto_a_pagar
+
+        for r in reservas_con_saldo:
+            if restante <= 0:
+                break
+
+            if r.saldo_a_favor <= restante:
+                restante -= r.saldo_a_favor
+                r.saldo_a_favor = 0
+            else:
+                r.saldo_a_favor -= restante
+                restante = 0
+
+            r.save()
+
+        pago = PagoReserva.objects.create(
+            reserva=reserva,
+            cliente=cliente,
+            tipo_pago=tipo_pago,
+            metodo_pago='saldo',
+            monto_total_clase=monto_total,
+            monto_abonado=monto_a_pagar,
+            estado='aprobado',
+        )
+
+        reserva.tipo_pago = 'SENIA' if tipo_pago == 'sena' else 'TOTAL'
+        reserva.estado = 'CONFIRMADA'
+        reserva.save()
+
+        return Response(
+            {
+                'mensaje': 'Pago con saldo confirmado correctamente.',
+                'pago': PagoReservaSerializer(pago).data,
+                'saldo_restante': str(saldo_disponible - monto_a_pagar),
+            },
+            status=status.HTTP_200_OK
+        )
+
 
 class VerificarPagoMPView(APIView):
     permission_classes = [AllowAny]

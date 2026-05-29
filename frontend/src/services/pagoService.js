@@ -37,3 +37,10 @@ export function verificarPagoMP(pagoId) {
     pago_id: pagoId,
   })
 }
+
+export function confirmarPagoSaldo({ reservaId, tipoPago }) {
+  return api.post('/pagos/confirmar-saldo/', {
+    reserva_id: reservaId,
+    tipo_pago: tipoPago,
+  })
+}

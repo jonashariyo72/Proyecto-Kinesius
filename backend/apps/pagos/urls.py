@@ -7,6 +7,7 @@ from .views import (
     PagosAdminView,
     SaldoFavorView,
     VerificarPagoMPView,
+    ConfirmarPagoSaldoView,
 )
 
 urlpatterns = [
@@ -17,4 +18,5 @@ urlpatterns = [
     path('saldo-favor/',  SaldoFavorView.as_view(),     name='saldo-favor'),
     path('<int:pago_id>/', DetallePagoView.as_view(),   name='detalle-pago'),
     path('verificar-mp/', VerificarPagoMPView.as_view(), name='verificar-mp'),
+    path('confirmar-saldo/', ConfirmarPagoSaldoView.as_view(), name='confirmar-saldo'),
 ]
