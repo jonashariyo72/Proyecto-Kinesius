@@ -112,20 +112,41 @@ function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVol
 
   const monto = tipoPago === 'sena' ? montoSena : montoTotal
 
+  const TARJETAS_VALIDAS = [
+    '5031755734530604', // Mastercard
+    '4509953566233704', // Visa
+    '5287338310253304', // Discover
+    '4002768694395619', // Visa débito
+  ]
+
   function validar() {
     const e = {}
-    if (tarjeta.numero.replace(/\s/g, '').length < 16) e.numero = 'Número de tarjeta inválido.'
+    const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
+    if (numeroLimpio.length < 16) e.numero = 'Número de tarjeta inválido.'
     if (!tarjeta.titular.trim()) e.titular = 'Ingresá el nombre del titular.'
-    if (!/^\d{2}\/\d{2}$/.test(tarjeta.vencimiento)) e.vencimiento = 'Formato: MM/AA.'
+    if (!/^\d{2}\/\d{2}$/.test(tarjeta.vencimiento)) {
+      e.vencimiento = 'Formato: MM/AA.'
+    } else {
+      const [mm, aa] = tarjeta.vencimiento.split('/').map(Number)
+      const ahora = new Date()
+      const expYear = 2000 + aa
+      if (mm < 1 || mm > 12) {
+        e.vencimiento = 'Mes inválido.'
+      } else if (expYear < ahora.getFullYear() || (expYear === ahora.getFullYear() && mm < ahora.getMonth() + 1)) {
+        e.vencimiento = 'La tarjeta está vencida.'
+      }
+    }
     if (tarjeta.cvv.length < 3) e.cvv = 'CVV inválido.'
     return e
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const errores = validar()
     if (Object.keys(errores).length > 0) { setErroresTarjeta(errores); return }
-    onConfirmar('TAR-SIM-' + Date.now())
+    const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
+    const esValida = TARJETAS_VALIDAS.includes(numeroLimpio) && tarjeta.cvv === '123'
+    onConfirmar(esValida)
   }
 
   function handleNumero(val) {
@@ -329,11 +350,29 @@ function ResultadoPago({ resultado, onReintentar }) {
         )}
 
         {!exito && (
-          <button className="btn-primary" style={{ marginTop: 20 }} onClick={onReintentar}>
+          <button className="btn-primary" style={{ marginTop: 20, width: '100%', fontSize: '1rem', padding: '14px' }} onClick={onReintentar}>
             Intentar de nuevo
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── Pantalla de carga ────────────────────────────────────────────────────────────────────────────────
+function ProcesandoPago() {
+  return (
+    <div className="pago-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 20 }}>
+      <div style={{
+        width: 56, height: 56,
+        border: '5px solid var(--borde)',
+        borderTop: '5px solid var(--acento, #4f8ef7)',
+        borderRadius: '50%',
+        animation: 'spin 0.9s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--texto)' }}>Procesando pago…</p>
+      <p style={{ fontSize: '0.85rem', color: 'var(--texto-suave)' }}>No cerrés esta ventana</p>
     </div>
   )
 }
@@ -425,10 +464,23 @@ async function handleElegirMetodo(metodo) {
     }
   }
 
-  async function handleConfirmarTarjeta(idTransaccion) {
-    setCargando(true)
-    await procesarConfirmacion(pagoId, 'aprobado', idTransaccion)
-    setCargando(false)
+  async function handleConfirmarTarjeta(esValida) {
+    setStep('procesando')
+    await new Promise(r => setTimeout(r, 1500))
+    if (!esValida) {
+      setResultado({ exito: false, mensaje: 'Transacción no realizada. La tarjeta ingresada no es válida.' })
+      setStep('resultado')
+      return
+    }
+    try {
+      const { data } = await confirmarPago({ pagoId, estado: 'aprobado' })
+      setResultado({ exito: true, mensaje: data.mensaje, pago: data.pago })
+      setStep('resultado')
+      onPagoExitoso?.(data.pago)
+    } catch (err) {
+      setResultado({ exito: false, mensaje: err.response?.data?.error ?? 'Error al confirmar el pago.' })
+      setStep('resultado')
+    }
   }
 
   async function procesarConfirmacion(pid, estado, idTransaccion) {
@@ -449,7 +501,7 @@ async function handleElegirMetodo(metodo) {
   function handleReintentar() {
     setError('')
     setResultado(null)
-    setStep('elegir-metodo')
+    setStep('formulario-tarjeta')
   }
 
   // ── Callback de EsperandoMercadoPago: se llama cuando detecta el pago ──
@@ -527,6 +579,8 @@ async function handleElegirMetodo(metodo) {
             onPagoConfirmado={handlePagoMPConfirmado}
           />
         )}
+
+        {step === 'procesando' && <ProcesandoPago />}
 
         {step === 'resultado' && (
           <ResultadoPago
