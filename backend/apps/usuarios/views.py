@@ -140,13 +140,13 @@ class LoginView(APIView):
             user.administrador.codigo_2fa_expiracion = expiracion
             user.administrador.save()
 
-            #send_mail(
-            #    subject='Código de verificación - Kinescius',
-            #    message=f'Tu código de verificación es: {codigo}',
-            #    from_email='info@kinescius.com.ar',
-            #   recipient_list=[user.email],
-            #    fail_silently=True,
-            #)
+            send_mail(
+                subject='Código de verificación - Kinescius',
+                message=f'Tu código de verificación es: {codigo}',
+                from_email='info@kinescius.com.ar',
+               recipient_list=[user.email],
+                fail_silently=True,
+            )
 
             return Response(
                 {
