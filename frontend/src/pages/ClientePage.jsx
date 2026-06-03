@@ -281,6 +281,7 @@ function formatFechaCorta(fecha) {
       setPagoActivo({
         reservaId:       resReserva.data.id,
         montoTotalClase: parseFloat(clase.precio),
+        clase,
       })
     } catch (err) {
       const msg =
@@ -345,16 +346,35 @@ function formatFechaCorta(fecha) {
     }
   }).filter(grupo => grupo.clases.length > 0)
 
-    if (pagoActivo) {
-      return (
-        <PagoReservaPage
-          reservaId={pagoActivo.reservaId}
-          montoTotalClase={pagoActivo.montoTotalClase}
-          onPagoExitoso={handlePagoExitoso}
-          onCancelar={() => setPagoActivo(null)}
-        />
-      )
-    }
+  if (pagoActivo) {
+    return (
+      <PagoReservaPage
+        reservaId={pagoActivo.reservaId}
+        montoTotalClase={pagoActivo.montoTotalClase}
+        clase={pagoActivo.clase}
+        pacienteId={pacienteId}
+        onRecrearReserva={async () => {
+          if (!pagoActivo.clase?.id) {
+            throw new Error('No se pudo recuperar la clase para reintentar el pago.')
+          }
+
+          const resReserva = await api.post('/reservas/gestion/', {
+            paciente: pacienteId,
+            clase: pagoActivo.clase.id,
+          })
+
+          setPagoActivo(prev => ({
+            ...prev,
+            reservaId: resReserva.data.id,
+          }))
+
+          return resReserva.data.id
+        }}
+        onPagoExitoso={handlePagoExitoso}
+        onCancelar={() => setPagoActivo(null)}
+      />
+    )
+  }
 
 
     return (

@@ -379,7 +379,7 @@ function ProcesandoPago() {
 }
 
 // ─── Página / Modal principal ─────────────────────────────────────────────────
-export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExitoso, onCancelar }) {
+export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExitoso, onCancelar, onRecrearReserva }) {
   const { access } = useAuth()
 
   const montoTotal = Number(montoTotalClase)
@@ -392,6 +392,7 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
   const [cargando, setCargando]     = useState(false)
   const [error, setError]           = useState('')
   const [saldoFavor, setSaldoFavor] = useState(0)
+  const [reservaActualId, setReservaActualId] = useState(reservaId)
 
   useEffect(() => {
     fetchSaldoFavor(access).then(setSaldoFavor)
@@ -414,7 +415,7 @@ async function handleElegirMetodo(metodo) {
 
   try {
     const { data } = await iniciarPago({
-      reservaId,
+      reservaId: reservaActualId,
       tipoPago,
       metodoPago: metodo,
       montoTotalClase: montoTotal,
@@ -446,7 +447,7 @@ async function handleElegirMetodo(metodo) {
 
     try {
       const { data } = await confirmarPagoSaldo({
-        reservaId,
+        reservaId: reservaActualId,
         tipoPago,
       })
 
@@ -499,10 +500,26 @@ async function handleElegirMetodo(metodo) {
     }
   }
 
-  function handleReintentar() {
+  async function handleReintentar() {
     setError('')
-    setResultado(null)
-    setStep('formulario-tarjeta')
+    setPagoId(null)
+
+    try {
+      if (onRecrearReserva) {
+        const nuevaReservaId = await onRecrearReserva()
+        setReservaActualId(nuevaReservaId)
+      }
+
+      setResultado(null)
+      setStep('elegir-metodo')
+    } catch (err) {
+      setResultado({
+        exito: false,
+        mensaje: err.message || err.response?.data?.error || 'No se pudo recrear la reserva.',
+        pago: null,
+      })
+      setStep('resultado')
+    }
   }
 
   // ── Callback de EsperandoMercadoPago: se llama cuando detecta el pago ──
@@ -592,7 +609,7 @@ async function handleElegirMetodo(metodo) {
 
         {step === 'procesando' && <ProcesandoPago />}
 
-        {step === 'resultado' && (
+        {step === 'resultado' && resultado && (
           <ResultadoPago
             resultado={resultado}
             onReintentar={handleReintentar}
