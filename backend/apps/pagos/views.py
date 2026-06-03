@@ -303,43 +303,31 @@ class PagosAdminView(APIView):
 
 
 class SaldoFavorView(APIView):
-    """
-    GET /api/pagos/saldo-favor/
-    Devuelve el saldo a favor disponible del cliente autenticado.
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         cliente = getattr(request.user, 'cliente', None)
+
         if not cliente:
             return Response(
                 {'error': 'Solo los clientes pueden consultar su saldo.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        reservas_con_saldo = Reserva.objects.filter(
-            paciente=cliente,
-            estado='CANCELADA',
-            saldo_a_favor__gt=0
-        )
-        total_saldo = sum(r.saldo_a_favor for r in reservas_con_saldo) or Decimal('0')
-
-        return Response({'saldo_disponible': str(total_saldo)})
+        return Response({
+            'saldo_disponible': str(cliente.saldo_a_favor)
+        })
 
 class ConfirmarPagoSaldoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        from django.db.models import Sum
         reserva_id = request.data.get('reserva_id')
-        tipo_pago = request.data.get('tipo_pago', 'sena')
-        print("=== PAGO CON SALDO ===")
-        print("DATA:", request.data)
-        print("tipo_pago recibido:", tipo_pago)
-        tipo_pago = str(tipo_pago).lower()
+        tipo_pago  = str(request.data.get('tipo_pago', 'sena')).lower()
 
         if tipo_pago not in ['sena', 'total']:
             return Response({'error': 'Tipo de pago inválido.'}, status=status.HTTP_400_BAD_REQUEST)
-
         if not reserva_id:
             return Response({'error': 'Falta reserva_id.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -352,37 +340,16 @@ class ConfirmarPagoSaldoView(APIView):
         if not cliente or reserva.paciente != cliente:
             return Response({'error': 'No tenés permiso para pagar esta reserva.'}, status=status.HTTP_403_FORBIDDEN)
 
-        monto_total = reserva.clase.precio
+        monto_total   = reserva.clase.precio
         monto_a_pagar = calcular_monto_abonado(tipo_pago, monto_total)
-        print("monto_total:", monto_total)
-        print("monto_a_pagar:", monto_a_pagar)
-        print("======================")
 
-        reservas_con_saldo = Reserva.objects.filter(
-            paciente=cliente,
-            estado='CANCELADA',
-            saldo_a_favor__gt=0
-        ).order_by('fecha_creacion')
-
-        saldo_disponible = sum(r.saldo_a_favor for r in reservas_con_saldo)
+        saldo_disponible = cliente.saldo_a_favor
 
         if saldo_disponible < monto_a_pagar:
             return Response({'error': 'Saldo a favor insuficiente.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        restante = monto_a_pagar
-
-        for r in reservas_con_saldo:
-            if restante <= 0:
-                break
-
-            if r.saldo_a_favor <= restante:
-                restante -= r.saldo_a_favor
-                r.saldo_a_favor = 0
-            else:
-                r.saldo_a_favor -= restante
-                restante = 0
-
-            r.save()
+        cliente.saldo_a_favor -= monto_a_pagar
+        cliente.save()
 
         pago = PagoReserva.objects.create(
             reserva=reserva,
@@ -394,7 +361,6 @@ class ConfirmarPagoSaldoView(APIView):
             estado='aprobado',
         )
 
-        reserva.tipo_pago = 'SENIA' if tipo_pago == 'sena' else 'TOTAL'
         reserva.estado = 'CONFIRMADA'
         reserva.save()
 
