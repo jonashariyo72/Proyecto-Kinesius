@@ -91,8 +91,14 @@ class ClaseViewSet(viewsets.ModelViewSet):
                     pago.estado == 'aprobado'
                     and pago.monto_devuelto == 0
                 ):
-                    pago.monto_devuelto = pago.monto_abonado
-                    pago.save()
+                    cliente = reserva.paciente
+
+                   
+
+                    # Registrar la devolución
+                    cliente = reserva.paciente
+                    cliente.saldo_a_favor += pago.monto_abonado
+                    cliente.save()
 
                     devueltas += 1
 

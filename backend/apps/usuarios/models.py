@@ -92,6 +92,11 @@ class Cliente(models.Model):
         related_name='cliente'
     )
 
+    saldo_a_favor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
     # Verificación de abono
     es_abonado       = models.BooleanField(default=False)
     fecha_venc_cuota = models.DateField(blank=True, null=True)

@@ -7,13 +7,13 @@ from .models import Reserva, ListaEspera
 from .serializers import ReservaSerializer, ListaEsperaSerializer
 from .permissions import IsOwnerOrAdmin
 from decimal import Decimal
-
+from datetime import datetime, timedelta
 
 class ReservaViewSet(viewsets.ModelViewSet):
     queryset = Reserva.objects.all()
     serializer_class = ReservaSerializer
     permission_classes = [IsOwnerOrAdmin]
-
+    
     def create(self, request, *args, **kwargs):
         """
         Validación:
@@ -84,55 +84,71 @@ class ReservaViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def cancelar_reserva(self, request, pk=None):
-
+        
+        
         try:
             reserva = Reserva.objects.get(id=pk)
-
         except Reserva.DoesNotExist:
             return Response(
                 {"error": "Reserva no encontrada"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # VALIDACIÓN: ya cancelada
         if reserva.estado == 'CANCELADA':
             return Response(
                 {"error": "La reserva ya está cancelada"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        ahora = timezone.now()
-        diferencia = reserva.fecha_reserva - ahora
+        from apps.pagos.models import PagoReserva
+        from decimal import Decimal
 
-        precio = reserva.clase.precio
-        saldo = 0
+        saldo = Decimal('0')
 
-        # MÁS DE 24 HS
-        if diferencia > timedelta(hours=24):
-            saldo = precio
+        try:
+            pago = reserva.pago
+            if pago.estado in ['aprobado']:
+                ahora = timezone.now()
 
-        # MENOS DE 24 HS
-        else:
+                # Combinar fecha_clase con hora_inicio para calcular diferencia
+                from datetime import datetime
+                fecha_hora_clase = datetime.combine(
+                    reserva.clase.fecha_clase,
+                    reserva.clase.hora_inicio
+                )
+                fecha_hora_clase = timezone.make_aware(fecha_hora_clase)
+                diferencia = fecha_hora_clase - ahora
 
-            # pagó total
-            if reserva.tipo_pago == 'TOTAL':
-                saldo = precio * Decimal("0.5")
+                # Más de 24 hs → devolucion total
+                if diferencia > timedelta(hours=24):
+                    saldo = pago.monto_abonado
 
-            # pagó seña
-            elif reserva.tipo_pago == 'SENIA':
-                saldo = 0
+                # Menos de 24 hs
+                else:
+                    # Pagó total → devuelve 50%
+                    if pago.tipo_pago == 'total':
+                        saldo = (pago.monto_abonado * Decimal('0.5')).quantize(Decimal('0.01'))
+                    # Pagó seña → no devuelve
+                    else:
+                        saldo = Decimal('0')
 
-        # guardar saldo
-        reserva.saldo_a_favor = saldo
+                if saldo > 0:
+                    pago.monto_devuelto = saldo
+                    pago.save()
 
-        # cancelar reserva
+                    cliente = reserva.paciente
+                    cliente.saldo_a_favor += saldo
+                    cliente.save()
+        except PagoReserva.DoesNotExist:
+            pass
+
         reserva.estado = 'CANCELADA'
         reserva.save()
 
-        # lista de espera
+        # Notificar al primero en lista de espera
         primer_espera = ListaEspera.objects.filter(
             clase=reserva.clase
-        ).first()
+        ).order_by('fecha_inscripcion').first()
 
         if primer_espera:
             primer_espera.notificado = True
@@ -142,11 +158,83 @@ class ReservaViewSet(viewsets.ModelViewSet):
         return Response(
             {
                 "mensaje": "Reserva cancelada correctamente",
-                "saldo_a_favor": saldo
+                "saldo_a_favor": str(saldo)
             },
             status=status.HTTP_200_OK
         )
+    
+    from datetime import datetime, timedelta
 
+    @action(detail=True, methods=['get'])
+    def resumen_cancelacion(self, request, pk=None):
+
+        try:
+            reserva = Reserva.objects.get(id=pk)
+        except Reserva.DoesNotExist:
+            return Response(
+                {"error": "Reserva no encontrada"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        mensaje = ""
+        devolucion = Decimal('0')
+
+        try:
+            pago = reserva.pago
+
+            ahora = timezone.now()
+
+            fecha_hora_clase = datetime.combine(
+                reserva.clase.fecha_clase,
+                reserva.clase.hora_inicio
+            )
+
+            fecha_hora_clase = timezone.make_aware(fecha_hora_clase)
+
+            diferencia = fecha_hora_clase - ahora
+
+            if diferencia >= timedelta(hours=24):
+
+                devolucion = pago.monto_abonado
+
+                if pago.metodo_pago == 'saldo':
+                    mensaje = (
+                        "✅ Cancelás con más de 24 hs de anticipación. "
+                        "El importe utilizado se acreditará nuevamente a tu saldo a favor."
+                    )
+                else:
+                    mensaje = (
+                        "✅ Cancelás con más de 24 hs de anticipación. "
+                        "Se te devolverá el monto abonado como saldo a favor."
+                    )
+
+            else:
+
+                if pago.tipo_pago.lower() == 'total':
+
+                    devolucion = (
+                        pago.monto_abonado * Decimal('0.5')
+                    ).quantize(Decimal('0.01'))
+
+                    mensaje = (
+                        "⚠️ Cancelás con menos de 24 hs. "
+                        "Se acreditará el 50% de lo abonado como saldo a favor."
+                    )
+
+                else:
+
+                    mensaje = (
+                        "❌ Cancelás con menos de 24 hs habiendo abonado una seña. "
+                        "No corresponde devolución."
+                    )
+
+        except Exception:
+            mensaje = "La reserva no posee pagos asociados."
+
+        return Response({
+            "mensaje": mensaje,
+            "devolucion": str(devolucion)
+        })
 
 class ListaEsperaViewSet(viewsets.ModelViewSet):
     queryset = ListaEspera.objects.all()

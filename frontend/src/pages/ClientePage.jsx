@@ -86,22 +86,32 @@ function formatFechaCorta(fecha) {
   // ─── Modal cancelar ────────────────────────────────────────────────────────────
   function ModalCancelar({ reserva, onConfirmar, onCerrar }) {
     const [procesando, setProcesando] = useState(false)
+    const [mensaje, setMensaje] = useState('')
+    const [devolucion, setDevolucion] = useState(0)
 
+    
     const handleCancelar = async () => {
       setProcesando(true)
       await onConfirmar(reserva.id)
       setProcesando(false)
     }
+  useEffect(() => {
+    async function cargarResumen() {
+      try {
+        const res = await api.get(
+          `/reservas/gestion/${reserva.id}/resumen_cancelacion/`
+        )
 
-    const ahora = new Date()
-    const fechaReserva = new Date(reserva.fecha_reserva)
-    const diffHoras = (fechaReserva - ahora) / (1000 * 60 * 60)
-    const esMas24 = diffHoras > 24
+        setMensaje(res.data.mensaje)
+        setDevolucion(Number(res.data.devolucion))
+      } catch (err) {
+        console.error(err)
+      }
+    }
 
-    const precio = parseFloat(reserva.clase_precio || 0)
-    let devolucion = 0
-    if (esMas24) devolucion = precio
-    else if (reserva.tipo_pago === 'TOTAL') devolucion = precio * 0.5
+    cargarResumen()
+  }, [reserva.id])
+  
 
     return (
       <div style={s.overlay}>
@@ -113,12 +123,7 @@ function formatFechaCorta(fecha) {
 
           <div style={s.avisoAmarillo}>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
-              {esMas24
-                ? '✅ Cancelás con más de 24 hs de anticipación. Se te devuelve el monto completo.'
-                : reserva.tipo_pago === 'TOTAL'
-                  ? '⚠️ Cancelás con menos de 24 hs. Se te devuelve el 50% del monto pagado.'
-                  : '❌ Cancelás con menos de 24 hs habiendo pagado seña. No hay devolución.'
-              }
+                  {mensaje}
             </p>
             {devolucion > 0 && (
               <p style={{ margin: '8px 0 0', fontWeight: 700, fontSize: 14 }}>
