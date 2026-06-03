@@ -13,3 +13,7 @@ __pycache__/
 
 # Variables de entorno
 .env
+
+# Frontend
+frontend/node_modules/
+frontend/.vite/
