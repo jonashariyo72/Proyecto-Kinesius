@@ -1,3 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import ReservaViewSet, ListaEsperaViewSet
 
-urlpatterns = []
+router = DefaultRouter()
+router.register(r'gestion', ReservaViewSet)
+router.register(r'espera', ListaEsperaViewSet)
+
+urlpatterns = [
+    path('', include(router.urls)),
+]
