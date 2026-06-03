@@ -69,13 +69,30 @@ def obtener_pago_mp(payment_id):
 
     return response["response"]
 
-def buscar_pago_por_external_reference(pago_id):
+def buscar_pago_por_external_reference(pago_id, monto_esperado=None):
     response = sdk.payment().search({
-        "external_reference": str(pago_id)
+        "external_reference": str(pago_id),
+        "sort": "date_created",
+        "criteria": "desc",
     })
 
     if response.get("status") not in [200, 201]:
         raise Exception(response.get("response"))
 
     results = response["response"].get("results", [])
-    return results[0] if results else None
+
+    for pago in results:
+        if str(pago.get("external_reference")) != str(pago_id):
+            continue
+
+        if pago.get("status") != "approved":
+            continue
+
+        if monto_esperado is not None:
+            monto_mp = float(pago.get("transaction_amount") or 0)
+            if monto_mp != float(monto_esperado):
+                continue
+
+        return pago
+
+    return None

@@ -281,12 +281,13 @@ function EsperandoMercadoPago({ onPagoConfirmado }) {
 
       if (data.estado === 'aprobado') {
         sessionStorage.removeItem('mp_pago_id')
-        onPagoConfirmado({ estado: 'aprobado' })
-      } else if (data.estado === 'rechazado') {
-        sessionStorage.removeItem('mp_pago_id')
-        onPagoConfirmado({ estado: 'rechazado' })
+        onPagoConfirmado({ estado: 'aprobado', pago: data.pago })
       } else {
-        setError('Todavía no encontramos el pago aprobado en Mercado Pago.')
+        sessionStorage.removeItem('mp_pago_id')
+        onPagoConfirmado({
+          estado: 'no_realizado',
+          mensaje: 'NO SE REALIZÓ EL PAGO',
+        })
       }
     } catch (err) {
       setError(err.response?.data?.error ?? 'No pudimos verificar el pago.')
@@ -505,15 +506,24 @@ async function handleElegirMetodo(metodo) {
   }
 
   // ── Callback de EsperandoMercadoPago: se llama cuando detecta el pago ──
-  function handlePagoMPConfirmado(pago) {
+  function handlePagoMPConfirmado(resultadoMP) {
     sessionStorage.removeItem('mp_pago_id')
+
+    const aprobado = resultadoMP.estado === 'aprobado'
+
     setResultado({
-      exito:   pago.estado === 'aprobado',
-      mensaje: pago.estado === 'aprobado' ? '¡Tu reserva fue confirmada!' : 'El pago fue rechazado.',
-      pago,
+      exito: aprobado,
+      mensaje: aprobado
+        ? '¡Tu reserva fue confirmada!'
+        : 'NO SE REALIZÓ EL PAGO',
+      pago: resultadoMP.pago,
     })
+
     setStep('resultado')
-    if (pago.estado === 'aprobado') onPagoExitoso?.(pago)
+
+    if (aprobado) {
+      onPagoExitoso?.(resultadoMP.pago)
+    }
   }
 
   return (

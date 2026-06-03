@@ -388,20 +388,32 @@ class VerificarPagoMPView(APIView):
         except PagoReserva.DoesNotExist:
             return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        pago_mp = buscar_pago_por_external_reference(pago_id)
+        pago_mp = buscar_pago_por_external_reference(str(pago.id), pago.monto_abonado)
 
         if not pago_mp:
-            return Response({'estado': 'pendiente'}, status=status.HTTP_200_OK)
+            reserva = pago.reserva
+            pago.delete()
+            reserva.delete()
 
-        if pago_mp.get('status') == 'approved':
-            pago.estado = 'aprobado'
-            pago.id_transaccion_externa = str(pago_mp.get('id'))
-            pago.save()
+            return Response(
+                {
+                    'estado': 'no_realizado',
+                    'mensaje': 'El pago no fue realizado'
+                },
+                status=status.HTTP_200_OK
+            )
 
-            pago.reserva.estado = 'CONFIRMADA'
-            pago.reserva.save()
+        pago.estado = 'aprobado'
+        pago.id_transaccion_externa = str(pago_mp.get('id'))
+        pago.save()
 
-            return Response({'estado': 'aprobado'}, status=status.HTTP_200_OK)
+        pago.reserva.estado = 'CONFIRMADA'
+        pago.reserva.save()
+
+        return Response({
+            'estado': 'aprobado',
+            'pago': PagoReservaSerializer(pago).data,
+        }, status=status.HTTP_200_OK)
 
         # Pago rechazado: limpiar todo
         reserva = pago.reserva
