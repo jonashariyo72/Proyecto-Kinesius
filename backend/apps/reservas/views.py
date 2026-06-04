@@ -156,31 +156,22 @@ class ReservaViewSet(viewsets.ModelViewSet):
             primer_espera.fecha_notificacion = timezone.now()
             primer_espera.save()
 
-            link_confirmar = (
-                f"http://localhost:5173/lista-espera/confirmar/{primer_espera.id}"
-            )
-
-            link_cancelar = (
-                f"http://localhost:5173/lista-espera/cancelar/{primer_espera.id}"
-            )
+            link_respuesta = (f"http://localhost:5173/lista-espera/responder/{primer_espera.id}")
 
             send_mail(
-                subject='Se liberó un cupo',
-                message=f'''
-        Se liberó un cupo para una sesión que estabas esperando.
+                    subject='Se liberó un cupo',
+                    message=f'''
+            Se liberó un cupo para una sesión que estabas esperando.
 
-        Confirmar asistencia:
-        {link_confirmar}
+            Ingresá al siguiente enlace:
+            {link_respuesta}
 
-        No asistir:
-        {link_cancelar}
-
-        Tenés 2 horas para responder.
-        ''',
-                from_email='info@kinescius.com.ar',
-                recipient_list=[primer_espera.paciente.usuario.email],
-                fail_silently=False
-            )
+            Tenés 2 horas para responder.
+            ''',
+                    from_email='info@kinescius.com.ar',
+                    recipient_list=[primer_espera.paciente.usuario.email],
+                    fail_silently=False
+                )
 
         return Response(
             {
@@ -346,6 +337,8 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
         """
         HU #17 - Confirmar turno desde lista de espera
         """
+        espera = self.get_object()
+
         primero = ListaEspera.objects.filter(
             clase=espera.clase
         ).order_by('fecha_inscripcion').first()
@@ -355,9 +348,6 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
                 {"error": "No sos el primero de la lista de espera."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-
-        espera = self.get_object()
 
         # El cliente debe haber sido notificado primero
         if not espera.notificado or not espera.fecha_notificacion:
@@ -382,24 +372,15 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
                 siguiente.fecha_notificacion = timezone.now()
                 siguiente.save()
 
-                link_confirmar = (
-                    f"http://localhost:5173/lista-espera/confirmar/{siguiente.id}"
-                )
-
-                link_cancelar = (
-                    f"http://localhost:5173/lista-espera/cancelar/{siguiente.id}"
-                )
+                link_respuesta = (f"http://localhost:5173/lista-espera/responder/{primer_espera.id}")
 
                 send_mail(
                     subject='Se liberó un cupo',
                     message=f'''
             Se liberó un cupo para una sesión que estabas esperando.
 
-            Confirmar asistencia:
-            {link_confirmar}
-
-            No asistir:
-            {link_cancelar}
+            Ingresá al siguiente enlace:
+            {link_respuesta}
 
             Tenés 2 horas para responder.
             ''',
@@ -453,6 +434,7 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
         """
         HU #17 - Cancelar desde lista de espera
         """
+        espera = self.get_object()
 
         primero = ListaEspera.objects.filter(
             clase=espera.clase
@@ -463,8 +445,6 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
                 {"error": "No sos el primero de la lista de espera."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        espera = self.get_object()
 
         siguiente = ListaEspera.objects.filter(
             clase=espera.clase
@@ -477,31 +457,22 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
             siguiente.fecha_notificacion = timezone.now()
             siguiente.save()
 
-            link_confirmar = (
-                f"http://localhost:5173/lista-espera/confirmar/{siguiente.id}"
-            )
-
-            link_cancelar = (
-                f"http://localhost:5173/lista-espera/cancelar/{siguiente.id}"
-            )
+            link_respuesta = (f"http://localhost:5173/lista-espera/responder/{siguiente.id}")
 
             send_mail(
-                subject='Se liberó un cupo',
-                message=f'''
-    Se liberó un cupo para una sesión que estabas esperando.
+                    subject='Se liberó un cupo',
+                    message=f'''
+            Se liberó un cupo para una sesión que estabas esperando.
 
-    Confirmar asistencia:
-    {link_confirmar}
+            Ingresá al siguiente enlace:
+            {link_respuesta}
 
-    No asistir:
-    {link_cancelar}
-
-    Tenés 2 horas para responder.
-    ''',
-                from_email='info@kinescius.com.ar',
-                recipient_list=[siguiente.paciente.usuario.email],
-                fail_silently=False
-            )
+            Tenés 2 horas para responder.
+            ''',
+                    from_email='info@kinescius.com.ar',
+                    recipient_list=[siguiente.paciente.usuario.email],
+                    fail_silently=False
+                )
 
         espera.delete()
 
