@@ -131,7 +131,7 @@ function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVol
       const ahora = new Date()
       const expYear = 2000 + aa
       if (mm < 1 || mm > 12) {
-        e.vencimiento = 'Mes inválido.'
+        e.vencimiento = 'Formato: MM/AA.'
       } else if (expYear < ahora.getFullYear() || (expYear === ahora.getFullYear() && mm < ahora.getMonth() + 1)) {
         e.vencimiento = 'La tarjeta está vencida.'
       }
@@ -349,12 +349,6 @@ function ResultadoPago({ resultado, onReintentar }) {
             )}
           </div>
         )}
-
-        {!exito && (
-          <button className="btn-primary" style={{ marginTop: 20, width: '100%', fontSize: '1rem', padding: '14px' }} onClick={onReintentar}>
-            Intentar de nuevo
-          </button>
-        )}
       </div>
     </div>
   )
@@ -532,7 +526,7 @@ async function handleElegirMetodo(metodo) {
       exito: aprobado,
       mensaje: aprobado
         ? '¡Tu reserva fue confirmada!'
-        : 'NO SE REALIZÓ EL PAGO',
+        : 'Transacción no realizada.',
       pago: resultadoMP.pago,
     })
 
