@@ -9,6 +9,9 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import ClientePage from './pages/ClientePage'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import RecuperarPasswordPage from './pages/RecuperarPasswordPage'
+import ListaEsperaConfirmarPage from './pages/ListaEsperaConfirmarPage'
+import ListaEsperaCancelarPage from './pages/ListaEsperaCancelarPage'
+
 
 import { PagoExitoso, PagoFallido, PagoPendiente } from './pages/PagoRetornoPages'
 
@@ -76,6 +79,10 @@ export default function App() {
           <Route path="/pago-exitoso"   element={<PagoExitoso />} />
           <Route path="/pago-fallido"   element={<PagoFallido />} />
           <Route path="/pago-pendiente" element={<PagoPendiente />} />
+
+          <Route path="/lista-espera/confirmar/:id" element={<ListaEsperaConfirmarPage />}/>
+
+          <Route path="/lista-espera/cancelar/:id" element={<ListaEsperaCancelarPage />}/>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
