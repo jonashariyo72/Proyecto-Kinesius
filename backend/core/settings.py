@@ -104,9 +104,18 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email (para notificaciones)
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_USE_TLS = True
+# EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+# EMAIL_HOST_USER = 'c50719e2950445'
+# EMAIL_HOST_PASSWORD = 'b2f52588205910'
+# EMAIL_PORT = '2525'
+
+# Email (para notificaciones)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
-EMAIL_HOST_USER = 'c50719e2950445'
-EMAIL_HOST_PASSWORD = 'b2f52588205910'
+EMAIL_HOST_USER = 'd3ed548eee252f'
+EMAIL_HOST_PASSWORD = 'dbed079949d4b3'
 EMAIL_PORT = '2525'
+DEFAULT_FROM_EMAIL = 'kinescius@kinescius.com'

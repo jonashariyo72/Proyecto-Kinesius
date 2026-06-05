@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-   import { iniciarPago, confirmarPago, getDetallePago, verificarPagoMP, confirmarPagoSaldo } from '../services/pagoService'
+   import { iniciarPago, confirmarPago, getDetallePago, verificarPagoMP, confirmarPagoSaldo, generarReservaListaEspera} from '../services/pagoService'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 import '../styles/pago.css'
+import { useParams, useNavigate } from 'react-router-dom'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 function formatARS(amount) {
@@ -131,7 +132,7 @@ function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVol
       const ahora = new Date()
       const expYear = 2000 + aa
       if (mm < 1 || mm > 12) {
-        e.vencimiento = 'Formato: MM/AA.'
+        e.vencimiento = 'Mes inválido.'
       } else if (expYear < ahora.getFullYear() || (expYear === ahora.getFullYear() && mm < ahora.getMonth() + 1)) {
         e.vencimiento = 'La tarjeta está vencida.'
       }
@@ -349,6 +350,12 @@ function ResultadoPago({ resultado, onReintentar }) {
             )}
           </div>
         )}
+
+        {!exito && (
+          <button className="btn-primary" style={{ marginTop: 20, width: '100%', fontSize: '1rem', padding: '14px' }} onClick={onReintentar}>
+            Intentar de nuevo
+          </button>
+        )}
       </div>
     </div>
   )
@@ -373,9 +380,12 @@ function ProcesandoPago() {
 }
 
 // ─── Página / Modal principal ─────────────────────────────────────────────────
-export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExitoso, onCancelar, onRecrearReserva }) {
+export default function PagoListaEsperaPage() {
+  const { id: esperaId } = useParams()
+  const navigate = useNavigate()
   const { access } = useAuth()
 
+  const [montoTotalClase, setMontoTotalClase] = useState(0)
   const montoTotal = Number(montoTotalClase)
   const montoSena  = +(montoTotal * 0.5).toFixed(2)
 
@@ -386,7 +396,7 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
   const [cargando, setCargando]     = useState(false)
   const [error, setError]           = useState('')
   const [saldoFavor, setSaldoFavor] = useState(0)
-  const [reservaActualId, setReservaActualId] = useState(reservaId)
+  const [reservaActualId, setReservaActualId] = useState(null)
 
   useEffect(() => {
     fetchSaldoFavor(access).then(setSaldoFavor)
@@ -397,7 +407,58 @@ export default function PagoReservaPage({ reservaId, montoTotalClase, onPagoExit
     setStep('elegir-metodo')
   }
 
-async function handleElegirMetodo(metodo) {
+// async function handleElegirMetodo(metodo) {
+//   setError('')
+
+//   if (metodo === 'saldo') {
+//     setStep('confirmar-saldo')
+//     return
+//   }
+
+//   setCargando(true)
+
+//   try {
+
+//     let reservaId = reservaActualId
+
+//     if (!reservaId) {
+//       const { data: reservaData } =
+//         await generarReservaListaEspera(esperaId)
+
+//       reservaId = reservaData.reserva_id
+
+//       setReservaActualId(reservaId)
+//       setMontoTotalClase(reservaData.monto_total)
+//     }
+
+//     const { data } = await iniciarPago({
+//       reservaId: reservaId,
+//       tipoPago,
+//       metodoPago: metodo,
+//       montoTotalClase: montoTotal,
+//     })
+
+//     setPagoId(data.pago_id)
+
+//     if (metodo === 'mercadopago') {
+//       if (data.mp_init_point) {
+//         sessionStorage.setItem('mp_pago_id', data.pago_id)
+//         window.open(data.mp_init_point, '_blank')
+//         setStep('esperando-mp')
+//       } else {
+//         setError('No se pudo generar el link de Mercado Pago.')
+//       }
+//     } else if (metodo === 'tarjeta') {
+//       setStep('formulario-tarjeta')
+//     }
+//   } catch (err) {
+//     setError(err.response?.data?.error ?? 'Error al iniciar el pago.')
+//   } finally {
+//     setCargando(false)
+//   }
+// }
+
+  async function handleElegirMetodo(metodo) {
   setError('')
 
   if (metodo === 'saldo') {
@@ -408,11 +469,22 @@ async function handleElegirMetodo(metodo) {
   setCargando(true)
 
   try {
+    let reservaId = reservaActualId
+    let montoClase = montoTotal  // ← variable local
+
+    if (!reservaId) {
+      const { data: reservaData } = await generarReservaListaEspera(esperaId)
+      reservaId = reservaData.reserva_id
+      montoClase = reservaData.monto_total  // ← actualizá la variable local
+      setReservaActualId(reservaId)
+      setMontoTotalClase(reservaData.monto_total)
+    }
+
     const { data } = await iniciarPago({
-      reservaId: reservaActualId,
+      reservaId: reservaId,
       tipoPago,
       metodoPago: metodo,
-      montoTotalClase: montoTotal,
+      montoTotalClase: montoClase,  // ← usá la variable local
     })
 
     setPagoId(data.pago_id)
@@ -436,29 +508,38 @@ async function handleElegirMetodo(metodo) {
 }
 
   async function handleConfirmarSaldo() {
-    setCargando(true)
-    setError('')
+  setCargando(true)
+  setError('')
 
-    try {
-      const { data } = await confirmarPagoSaldo({
-        reservaId: reservaActualId,
-        tipoPago,
-      })
-
-      setResultado({
-        exito: true,
-        mensaje: data.mensaje,
-        pago: data.pago,
-      })
-
-      setStep('resultado')
-      onPagoExitoso?.(data.pago)
-    } catch (err) {
-      setError(err.response?.data?.error ?? 'No se pudo confirmar el pago con saldo.')
-    } finally {
-      setCargando(false)
+  try {
+    // Generar reserva si todavía no existe
+    let reservaId = reservaActualId
+    if (!reservaId) {
+      const { data: reservaData } = await generarReservaListaEspera(esperaId)
+      reservaId = reservaData.reserva_id
+      setReservaActualId(reservaId)
+      setMontoTotalClase(reservaData.monto_total)  // ← para que no quede NaN
     }
+
+    const { data } = await confirmarPagoSaldo({
+      reservaId,   // ← usamos la variable local, no el state que puede ser null
+      tipoPago,
+    })
+
+    setResultado({
+      exito: true,
+      mensaje: data.mensaje,
+      pago: data.pago,
+    })
+
+    setStep('resultado')
+    onPagoExitoso?.(data.pago)
+  } catch (err) {
+    setError(err.response?.data?.error ?? 'No se pudo confirmar el pago con saldo.')
+  } finally {
+    setCargando(false)
   }
+}
 
   async function handleConfirmarTarjeta(esValida) {
     setStep('procesando')
@@ -526,7 +607,7 @@ async function handleElegirMetodo(metodo) {
       exito: aprobado,
       mensaje: aprobado
         ? '¡Tu reserva fue confirmada!'
-        : 'Transacción no realizada.',
+        : 'NO SE REALIZÓ EL PAGO',
       pago: resultadoMP.pago,
     })
 
@@ -546,9 +627,7 @@ async function handleElegirMetodo(metodo) {
             <span className="logo-k">K</span>
             <span className="logo-text">INESCIUS</span>
           </div>
-          {step !== 'esperando-mp' &&(
-          <button className="pago-close-btn" onClick={onCancelar} aria-label="Cerrar">✕</button>
-          )}
+          <button className="pago-close-btn" onClick={() => navigate(-1)} aria-label="Cerrar">✕</button>
         </div>
 
         {step === 'elegir-tipo' && (

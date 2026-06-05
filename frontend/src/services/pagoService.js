@@ -44,3 +44,7 @@ export function confirmarPagoSaldo({ reservaId, tipoPago }) {
     tipo_pago: tipoPago,
   })
 }
+
+export function generarReservaListaEspera(esperaId) {
+  return api.post(`/reservas/espera/${esperaId}/generar_reserva/`)
+}

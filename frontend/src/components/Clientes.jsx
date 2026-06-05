@@ -70,7 +70,7 @@ export default function Clientes() {
               {filtrados.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#999' }}>
-                    Sin resultados
+                    No hay clientes registrados en el centro
                   </td>
                 </tr>
               ) : (
