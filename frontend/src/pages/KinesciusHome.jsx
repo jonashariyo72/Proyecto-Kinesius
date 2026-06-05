@@ -354,11 +354,11 @@ export default function KinesciusHome() {
 
         <div className="kn-map-container kn-fade-in" ref={addFadeRef}>
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3284.016848805396!2d-58.38415772346517!3d-34.60373597295296!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bccacf0f272b2b%3A0x9dba26f59f79f04f!2sAv.%20Corrientes%201000%2C%20Buenos%20Aires!5e0!3m2!1ses!2sar!4v1714000000000!5m2!1ses!2sar"
+            src="https://maps.google.com/maps?q=Facultad+de+Informatica+UNLP,+Calle+50+y+120,+La+Plata&output=embed&hl=es"
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="Ubicación Kinescius"
+            title="Kinescius Centro de Rehabilitación -  Kinesiologia"
           />
         </div>
 
@@ -368,7 +368,7 @@ export default function KinesciusHome() {
             <div>
               <h4>Dirección</h4>
               <p>
-                Av. Corrientes 1000
+                Calle 50 y Av. 120, La Plata
                 <br />
                 Buenos Aires, Argentina
               </p>
@@ -380,8 +380,6 @@ export default function KinesciusHome() {
               <h4>Horario de atención</h4>
               <p>
                 Lun – Vie: 8:00 a 20:00
-                <br />
-                Sábados: 9:00 a 14:00
               </p>
             </div>
           </div>
