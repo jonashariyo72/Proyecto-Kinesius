@@ -232,9 +232,16 @@ class ConfirmarPagoView(APIView):
 
         estado_final = data['estado']
 
-        if data.get('id_transaccion_externa'):
+        if (
+            pago.metodo_pago == 'mercadopago'
+            and data.get('id_transaccion_externa')
+             ):
             pago_mp = obtener_pago_mp(data['id_transaccion_externa'])
-            estado_final = 'aprobado' if pago_mp.get('status') == 'approved' else 'rechazado'
+            estado_final = (
+                'aprobado'
+                if pago_mp.get('status') == 'approved'
+                else 'rechazado'
+            )
 
         pago.estado = estado_final
         if data.get('id_transaccion_externa'):
