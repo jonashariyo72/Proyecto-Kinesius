@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { loginUsuario, verificar2FA } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 
@@ -15,6 +15,9 @@ function FormCredenciales({ onRequiere2FA, onError }) {
   const [verPassword, setVerPassword] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+
+  const location = useLocation()
+  const redirect = new URLSearchParams(location.search).get('redirect')
  
   const handleChange = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }))
@@ -31,7 +34,7 @@ function FormCredenciales({ onRequiere2FA, onError }) {
       } else {
         // Es cliente o kinesiólogo, JWT directo
         login(data.access, data.refresh, data.rol)
-        navigate(rutaPorRol[data.rol] ?? '/')
+        navigate(redirect ?? rutaPorRol[data.rol] ?? '/')
       }
     } catch (err) {
       onError(err.response?.data?.error ?? 'Error al iniciar sesión.')

@@ -9,6 +9,7 @@ from .permissions import IsOwnerOrAdmin
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 
 class ReservaViewSet(viewsets.ModelViewSet):
     queryset = Reserva.objects.all()
@@ -158,20 +159,39 @@ class ReservaViewSet(viewsets.ModelViewSet):
 
             link_respuesta = (f"http://localhost:5173/lista-espera/responder/{primer_espera.id}")
 
-            send_mail(
-                    subject='Se liberó un cupo',
-                    message=f'''
-            Se liberó un cupo para una sesión que estabas esperando.
+            html_content = f"""
+            <h2>🎉 Se liberó un cupo</h2>
 
-            Ingresá al siguiente enlace:
-            {link_respuesta}
+            <p>
+            Hay una vacante disponible para una sesión que estabas esperando.
+            </p>
 
-            Tenés 2 horas para responder.
-            ''',
-                    from_email='info@kinescius.com.ar',
-                    recipient_list=[primer_espera.paciente.usuario.email],
-                    fail_silently=False
-                )
+            <p>
+            <a href="{link_respuesta}"
+            style="
+                background:#2E7D32;
+                color:white;
+                padding:12px 20px;
+                text-decoration:none;
+                border-radius:6px;
+                display:inline-block;">
+                Responder solicitud
+            </a>
+            </p>
+
+            <p>
+            ⏳ Tenés 2 horas para responder.
+            </p>
+            """
+            email = EmailMultiAlternatives(
+                subject='Se liberó un cupo',
+                body=f'Ingresá al siguiente enlace: {link_respuesta}',
+                from_email='info@kinescius.com.ar',
+                to=[primer_espera.paciente.usuario.email]
+            )
+
+            email.attach_alternative(html_content, "text/html")
+            email.send()
 
         return Response(
             {
@@ -372,22 +392,41 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
                 siguiente.fecha_notificacion = timezone.now()
                 siguiente.save()
 
-                link_respuesta = (f"http://localhost:5173/lista-espera/responder/{primer_espera.id}")
+                link_respuesta = (f"http://localhost:5173/lista-espera/responder/{siguiente.id}")
 
-                send_mail(
+                html_content = f"""
+                <h2>🎉 Se liberó un cupo</h2>
+
+                <p>
+                Hay una vacante disponible para una sesión que estabas esperando.
+                </p>
+
+                <p>
+                <a href="{link_respuesta}"
+                style="
+                    background:#2563eb;
+                    color:white;
+                    padding:12px 20px;
+                    text-decoration:none;
+                    border-radius:6px;
+                    display:inline-block;">
+                    Responder solicitud
+                </a>
+                </p>
+
+                <p>
+                ⏳ Tenés 2 horas para responder.
+                </p>
+                """
+                email = EmailMultiAlternatives(
                     subject='Se liberó un cupo',
-                    message=f'''
-            Se liberó un cupo para una sesión que estabas esperando.
-
-            Ingresá al siguiente enlace:
-            {link_respuesta}
-
-            Tenés 2 horas para responder.
-            ''',
+                    body=f'Ingresá al siguiente enlace: {link_respuesta}',
                     from_email='info@kinescius.com.ar',
-                    recipient_list=[siguiente.paciente.usuario.email],
-                    fail_silently=False
+                    to=[siguiente.paciente.usuario.email]
                 )
+
+                email.attach_alternative(html_content, "text/html")
+                email.send()
 
             espera.delete()
 
@@ -459,20 +498,39 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
 
             link_respuesta = (f"http://localhost:5173/lista-espera/responder/{siguiente.id}")
 
-            send_mail(
-                    subject='Se liberó un cupo',
-                    message=f'''
-            Se liberó un cupo para una sesión que estabas esperando.
+            html_content = f"""
+            <h2>🎉 Se liberó un cupo</h2>
 
-            Ingresá al siguiente enlace:
-            {link_respuesta}
+            <p>
+            Hay una vacante disponible para una sesión que estabas esperando.
+            </p>
 
-            Tenés 2 horas para responder.
-            ''',
-                    from_email='info@kinescius.com.ar',
-                    recipient_list=[siguiente.paciente.usuario.email],
-                    fail_silently=False
-                )
+            <p>
+            <a href="{link_respuesta}"
+            style="
+                background:#2563eb;
+                color:white;
+                padding:12px 20px;
+                text-decoration:none;
+                border-radius:6px;
+                display:inline-block;">
+                Responder solicitud
+            </a>
+            </p>
+
+            <p>
+            ⏳ Tenés 2 horas para responder.
+            </p>
+            """
+            email = EmailMultiAlternatives(
+                subject='Se liberó un cupo',
+                body=f'Ingresá al siguiente enlace: {link_respuesta}',
+                from_email='info@kinescius.com.ar',
+                to=[siguiente.paciente.usuario.email]
+            )
+
+            email.attach_alternative(html_content, "text/html")
+            email.send()
 
         espera.delete()
 
@@ -511,3 +569,77 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_200_OK
         )
+    
+    @action(detail=True, methods=['post'])
+    def generar_reserva(self, request, pk=None):
+        """
+        Genera una reserva pendiente para iniciar el flujo de pago
+        desde una entrada de lista de espera.
+        """
+
+        espera = self.get_object()
+
+        # Debe seguir siendo el primero
+        primero = ListaEspera.objects.filter(
+            clase=espera.clase
+        ).order_by('fecha_inscripcion').first()
+
+        if not primero or primero.id != espera.id:
+            return Response(
+                {"error": "Ya no sos el primero de la lista de espera."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Debe haber sido notificado
+        if not espera.notificado or not espera.fecha_notificacion:
+            return Response(
+                {"error": "No fuiste notificado para un cupo."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Debe seguir dentro de las 2 horas
+        limite = espera.fecha_notificacion + timedelta(hours=2)
+
+        if timezone.now() > limite:
+            return Response(
+                {"error": "La disponibilidad del cupo expiró."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Debe existir cupo libre
+        if not espera.clase.tiene_cupo():
+            return Response(
+                {"error": "El cupo ya fue ocupado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Si ya existe una reserva pendiente o confirmada la reutilizamos
+        reserva_existente = Reserva.objects.filter(
+            paciente=espera.paciente,
+            clase=espera.clase,
+            estado__in=['PENDIENTE', 'CONFIRMADA']
+        ).first()
+
+        if reserva_existente:
+            return Response(
+                {
+                    "reserva_id": reserva_existente.id,
+                    "monto_total": str(reserva_existente.clase.precio)
+                },
+                status=status.HTTP_200_OK
+            )
+
+        reserva = Reserva.objects.create(
+            paciente=espera.paciente,
+            clase=espera.clase,
+            estado='PENDIENTE'
+        )
+
+        return Response(
+            {
+                "reserva_id": reserva.id,
+                "monto_total": str(reserva.clase.precio)
+            },
+            status=status.HTTP_201_CREATED
+        )
+

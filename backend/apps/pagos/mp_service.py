@@ -24,7 +24,7 @@ def generar_preferencia_mp(pago_obj):
     preference_data = {
         "items": [
             {
-                "title": f"Pago Reserva Kinescius - Clase {pago_obj.reserva.clase.tipo} - {pago_obj.reserva.clase.dia.capitalize()} {pago_obj.reserva.clase.hora_inicio.strftime('%H:%M')}",
+                "title": f"Pago Reserva Kinescius - Clase {pago_obj.reserva.clase.tipo}",
                 "quantity": 1,
                 "unit_price": float(pago_obj.monto_abonado),
                 "currency_id": "ARS",
@@ -43,11 +43,15 @@ def generar_preferencia_mp(pago_obj):
     }
 
     # ⚠️ Llamada única — antes estaba duplicada, lo que generaba dos preferencias
+    print("=== CREANDO PREFERENCIA MP ===")
+    print(preference_data)
+
     preference_response = sdk.preference().create(preference_data)
 
     print("=== RESPUESTA MP ===")
     print(preference_response)
     print("===================")
+
 
     if preference_response.get("status") not in [200, 201]:
         raise Exception(preference_response.get("response"))
