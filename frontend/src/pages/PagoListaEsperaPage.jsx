@@ -386,7 +386,7 @@ export default function PagoListaEsperaPage() {
   const { access } = useAuth()
 
   const [montoTotalClase, setMontoTotalClase] = useState(0)
-  const montoTotal = Number(montoTotalClase)
+  const montoTotal = Number(montoTotalClase) || 0
   const montoSena  = +(montoTotal * 0.5).toFixed(2)
 
   const [step, setStep]             = useState('elegir-tipo')
@@ -394,9 +394,30 @@ export default function PagoListaEsperaPage() {
   const [pagoId, setPagoId]         = useState(null)
   const [resultado, setResultado]   = useState(null)
   const [cargando, setCargando]     = useState(false)
+  const [cargandoInicial, setCargandoInicial] = useState(true)
   const [error, setError]           = useState('')
   const [saldoFavor, setSaldoFavor] = useState(0)
   const [reservaActualId, setReservaActualId] = useState(null)
+
+  useEffect(() => {
+    async function cargarReservaListaEspera() {
+      setCargandoInicial(true)
+      setError('')
+
+      try {
+        const { data: reservaData } = await generarReservaListaEspera(esperaId)
+
+        setReservaActualId(reservaData.reserva_id)
+        setMontoTotalClase(reservaData.monto_total)
+      } catch (err) {
+        setError(err.response?.data?.error ?? 'No se pudo cargar el pago de la lista de espera.')
+      } finally {
+        setCargandoInicial(false)
+      }
+    }
+
+    cargarReservaListaEspera()
+  }, [esperaId])
 
   useEffect(() => {
     fetchSaldoFavor(access).then(setSaldoFavor)
@@ -477,7 +498,16 @@ export default function PagoListaEsperaPage() {
       reservaId = reservaData.reserva_id
       montoClase = reservaData.monto_total  // ← actualizá la variable local
       setReservaActualId(reservaId)
-      setMontoTotalClase(reservaData.monto_total)
+      const monto = Number(
+        reservaData.monto_total ??
+        reservaData.montoTotal ??
+        reservaData.precio ??
+        reservaData.precio_clase ??
+        reservaData.clase?.precio ??
+        reservaData.reserva?.clase?.precio
+      )
+
+      setMontoTotalClase(monto)
     }
 
     const { data } = await iniciarPago({
@@ -501,9 +531,11 @@ export default function PagoListaEsperaPage() {
       setStep('formulario-tarjeta')
     }
   } catch (err) {
-    setError(err.response?.data?.error ?? 'Error al iniciar el pago.')
+    console.error('Error iniciarPago:', err.response?.data || err)
+
+    setError(err.response?.data?.error ?? 'Error al iniciar el pago.')  
   } finally {
-    setCargando(false)
+    setCargandoInicial(false)
   }
 }
 
@@ -518,7 +550,16 @@ export default function PagoListaEsperaPage() {
       const { data: reservaData } = await generarReservaListaEspera(esperaId)
       reservaId = reservaData.reserva_id
       setReservaActualId(reservaId)
-      setMontoTotalClase(reservaData.monto_total)  // ← para que no quede NaN
+      const monto = Number(
+        reservaData.monto_total ??
+        reservaData.montoTotal ??
+        reservaData.precio ??
+        reservaData.precio_clase ??
+        reservaData.clase?.precio ??
+        reservaData.reserva?.clase?.precio
+      )
+
+      setMontoTotalClase(monto)// ← para que no quede NaN
     }
 
     const { data } = await confirmarPagoSaldo({
@@ -617,6 +658,32 @@ export default function PagoListaEsperaPage() {
       onPagoExitoso?.(resultadoMP.pago)
     }
   }
+
+
+  if (cargandoInicial) {
+  return (
+    <div className="pago-overlay">
+      <div className="pago-card">
+        <ProcesandoPago />
+      </div>
+    </div>
+  )
+}
+
+if (error && !reservaActualId) {
+  return (
+    <div className="pago-overlay">
+      <div className="pago-card">
+        <div className="pago-body">
+          <p className="auth-error">{error}</p>
+          <button className="btn-primary" onClick={() => navigate('/')}>
+            Volver al inicio
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
   return (
     <div className="pago-overlay">

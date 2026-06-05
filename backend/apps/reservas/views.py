@@ -623,7 +623,8 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
         if reserva_existente:
             return Response(
                 {
-                    "reserva_id": reserva_existente.id
+                    "reserva_id": reserva_existente.id,
+                    "monto_total": str(reserva_existente.clase.precio)
                 },
                 status=status.HTTP_200_OK
             )
@@ -636,7 +637,8 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
 
         return Response(
             {
-                "reserva_id": reserva.id
+                "reserva_id": reserva.id,
+                "monto_total": str(reserva.clase.precio)
             },
             status=status.HTTP_201_CREATED
         )
