@@ -7,9 +7,11 @@ from .views import (
     ListaKinesiologosView,
     CambiarPasswordView,
     PerfilClienteView,
+    PerfilKinesiologoView,
     RecuperarPasswordView,
     ListaClientesView,
     ResetPasswordPublicView,
+    BajaUsuarioView,
 )
 
 urlpatterns = [
@@ -20,7 +22,9 @@ urlpatterns = [
     path('kinesiologos/',         ListaKinesiologosView.as_view(),    name='kinesiologos'),
     path('cambiar-password/', CambiarPasswordView.as_view()),
     path('perfil/', PerfilClienteView.as_view(), name='perfil-cliente'),
+    path('perfil-kinesiologo/', PerfilKinesiologoView.as_view(), name='perfil-kinesiologo'),
     path('recuperar-password/', RecuperarPasswordView.as_view()),
     path('clientes/', ListaClientesView.as_view(), name='clientes'),
     path('reset-password/', ResetPasswordPublicView.as_view()),
+    path('baja-usuario/',   BajaUsuarioView.as_view(), name='baja-usuario'),
 ]

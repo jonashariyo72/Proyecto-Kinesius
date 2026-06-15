@@ -44,7 +44,7 @@ const FORM_VACIO = {
   descripcion: '',
 }
 
-export default function Clases({ precioPorDefecto = 15000 }) {
+export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, modoKinesiologo = false, kineId = null }) {
   const [modalListaEspera, setModalListaEspera] = useState(null)
   const [clases, setClases]               = useState([])
   const [loading, setLoading]             = useState(true)
@@ -73,6 +73,7 @@ export default function Clases({ precioPorDefecto = 15000 }) {
       if (filtroDia)         params.append('dia',         filtroDia)
       if (filtroTipo)        params.append('tipo',        filtroTipo)
       if (filtroKinesiologo) params.append('kinesiologo', filtroKinesiologo)
+      if (modoKinesiologo && kineId) params.append('kinesiologo', kineId)
 
       const res  = await api.get(`/clases/?${params.toString()}`)
       const data = Array.isArray(res.data) ? res.data : res.data.results ?? []
@@ -96,7 +97,7 @@ export default function Clases({ precioPorDefecto = 15000 }) {
         setKinesiologos(data)
       })
       .catch(() => console.error('No se pudieron cargar los kinesiólogos'))
-  }, [])
+  }, [refreshKines])
 
   const abrirCrear = () => {
     setEditando(null)
@@ -257,26 +258,30 @@ export default function Clases({ precioPorDefecto = 15000 }) {
             ))}
           </select>
 
-          <select
-            style={s.select}
-            value={filtroKinesiologo}
-            onChange={e => setFiltroKinesiologo(e.target.value)}
-          >
-            <option value="">Todos los kinesiólogos</option>
+          {!modoKinesiologo && (
+            <select
+              style={s.select}
+              value={filtroKinesiologo}
+              onChange={e => setFiltroKinesiologo(e.target.value)}
+            >
+              <option value="">Todos los kinesiólogos</option>
 
-            {kinesiologos.map(k => (
-              <option key={k.id} value={k.id}>
-                {k.nombre}
-              </option>
-            ))}
-          </select>
+              {kinesiologos.map(k => (
+                <option key={k.id} value={k.id}>
+                  {k.nombre}
+                </option>
+              ))}
+            </select>
+          )}
 
-          <button
-            style={{ ...s.btnVerde, cursor: 'pointer' }}
-            onClick={abrirCrear}
-          >
-            + Nueva clase
-          </button>
+          {!modoKinesiologo && (
+            <button
+              style={{ ...s.btnVerde, cursor: 'pointer' }}
+              onClick={abrirCrear}
+            >
+              + Nueva clase
+            </button>
+          )}
 
         </div>
       </div>
@@ -369,7 +374,7 @@ export default function Clases({ precioPorDefecto = 15000 }) {
               <span style={s.inactiva}>INACTIVA</span>
             )}
 
-            {c.activa && (
+            {c.activa && !modoKinesiologo && (
               <div style={s.acciones}>
 
                 <button

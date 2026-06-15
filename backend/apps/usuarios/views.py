@@ -264,7 +264,7 @@ class ListaKinesiologosView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        kines = Kinesiologo.objects.select_related('usuario').all()
+        kines = Kinesiologo.objects.select_related('usuario').filter(usuario__is_active=True)
 
         data = [
             {
@@ -326,6 +326,16 @@ class CambiarPasswordView(APIView):
             status=status.HTTP_200_OK
         )
     
+class PerfilKinesiologoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        kine = getattr(request.user, 'kinesiologo', None)
+        if not kine:
+            return Response({'error': 'No es kinesiólogo'}, status=403)
+        return Response({'id': kine.id, 'nombre': request.user.nombre, 'apellido': request.user.apellido})
+
+
 # views.py de usuarios
 class PerfilClienteView(APIView):
     permission_classes = [IsAuthenticated]
@@ -446,7 +456,50 @@ class ResetPasswordPublicView(APIView):
         )
 
 
- 
+
+# Dar de baja un cliente o kinesiólogo
+
+class BajaUsuarioView(APIView):
+    permission_classes = [EsAdministrador]
+
+    def post(self, request):
+        dni = request.data.get('dni', '').strip()
+
+        if not dni:
+            return Response(
+                {'error': 'Por favor, ingrese un DNI.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            usuario = Usuario.objects.get(dni=dni)
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Error en la baja por DNI no perteneciente a un usuario'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if hasattr(usuario, 'administrador'):
+            return Response(
+                {'error': 'No se puede dar de baja a un Administrador'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not usuario.is_active:
+            return Response(
+                {'error': 'El usuario ya se encuentra dado de baja'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        usuario.is_active = False
+        usuario.save()
+
+        return Response(
+            {'mensaje': 'Baja exitosa'},
+            status=status.HTTP_200_OK
+        )
+
+
 class ListaClientesView(APIView):
     """
     GET /usuarios/clientes/
@@ -456,7 +509,7 @@ class ListaClientesView(APIView):
     permission_classes = [EsAdministrador]
  
     def get(self, request):
-        clientes = Cliente.objects.select_related('usuario').all()
+        clientes = Cliente.objects.select_related('usuario').filter(usuario__is_active=True)
  
         data = [
             {
