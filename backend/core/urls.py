@@ -8,5 +8,6 @@ urlpatterns = [
     path('api/reservas/',       include('apps.reservas.urls')),
     path('api/pagos/',          include('apps.pagos.urls')),
     path('api/notificaciones/', include('apps.notificaciones.urls')),
+    path('api/', include('apps.quejas.urls')),
 
 ]

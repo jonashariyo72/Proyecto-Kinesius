@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import api from '../services/clasesService'
 import { Link } from "react-router-dom";
 import PagoReservaPage from './PagoReservaPage'
+import { crearQueja } from '../services/quejaService'
 
 const DIAS = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
@@ -188,6 +189,8 @@ export default function ClientePage() {
   const [toast, setToast]             = useState('')
   const [nombreUsuario, setNombreUsuario] = useState('')
   const [confirmarLogout, setConfirmarLogout] = useState(false)
+  const [textoQueja, setTextoQueja] = useState('')
+  const [mensajeQueja, setMensajeQueja] = useState('')
 
   // Filtros
   const [filtroTipo, setFiltroTipo]               = useState('')
@@ -295,7 +298,46 @@ export default function ClientePage() {
     }
   }
 
+  const enviarQueja = async () => {
+    try {
+      const res = await api.post('/quejas/', {
+        descripcion: textoQueja
+      })
+
+      setMensajeQueja(res.data.mensaje)
+      setTextoQueja('')
+    } catch (err) {
+      setMensajeQueja(
+        err.response?.data?.error ||
+        'No se pudo enviar la queja.'
+      )
+    }
+  }
+
   const handleLogout = () => { logout(); navigate('/login') }
+
+  const handleEnviarQueja = async () => {
+    if (!textoQueja.trim()) {
+      mostrarToast('Ingresá una queja.')
+      return
+    }
+
+    try {
+      setEnviandoQueja(true)
+
+      await crearQueja(textoQueja)
+
+      mostrarToast(
+        'Su nota ha sido añadida al libro de quejas con éxito'
+      )
+
+      setTextoQueja('')
+    } catch (error) {
+      mostrarToast('No se pudo registrar la queja.')
+    } finally {
+      setEnviandoQueja(false)
+    }
+  }
 
   const clasesPorDia = DIAS_SEMANA.map(dia => {
     const clasesDelDia = clases
@@ -354,6 +396,17 @@ export default function ClientePage() {
           >
             <IconList /> Mis turnos
           </button>
+          <button
+            style={{
+              ...s.navBtn,
+              ...(seccion === 'quejas' ? s.navActivo : {})
+            }}
+            onClick={() => setSeccion('quejas')}
+          >
+            Quejas
+          </button>
+
+
           <Link to="/cambiar-password" style={s.navBtn}>
             <IconLock /> Cambiar contraseña
           </Link>
@@ -495,6 +548,70 @@ export default function ClientePage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {seccion === 'quejas' && (
+          <>
+            <div style={s.seccionHeader}>
+              <h1 style={s.titulo}>Libro de quejas</h1>
+              <p style={s.sub}>
+                Contanos qué podemos mejorar
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: '#fff',
+                padding: '20px',
+                borderRadius: '12px',
+                border: '1px solid #ddd'
+              }}
+            >
+              <textarea
+                value={textoQueja}
+                onChange={(e) => setTextoQueja(e.target.value)}
+                placeholder="Escribí tu queja..."
+                rows={6}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #ccc'
+                }}
+              />
+
+              <div
+                style={{
+                  marginTop: '12px',
+                  display: 'flex',
+                  gap: '10px'
+                }}
+              >
+                <button
+                  style={s.btnVerde}
+                  onClick={enviarQueja}
+                >
+                  Enviar queja
+                </button>
+
+                <button
+                  style={s.btnGris}
+                  onClick={() => {
+                    setTextoQueja('')
+                    setMensajeQueja('')
+                  }}
+                >
+                  Cancelar operación
+                </button>
+              </div>
+
+              {mensajeQueja && (
+                <p style={{ marginTop: '12px' }}>
+                  {mensajeQueja}
+                </p>
+              )}
             </div>
           </>
         )}

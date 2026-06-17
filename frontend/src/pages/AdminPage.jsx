@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
 import Clientes from '../components/Clientes'
+import { obtenerQuejas } from '../services/quejaService'
 
 const API = 'http://localhost:8000/api'
 
@@ -15,6 +16,9 @@ export default function AdminPage() {
   const [precio, setPrecio]                   = useState(15000)
   const [inputPrecio, setInputPrecio]         = useState(15000)
   const [editandoPrecio, setEditandoPrecio]   = useState(false)
+  const [quejas, setQuejas] = useState([])
+  const [loadingQuejas, setLoadingQuejas] = useState(false)
+  const [vista, setVista] = useState('principal')
 
   const [refreshKines, setRefreshKines] = useState(0)
 
@@ -89,6 +93,24 @@ export default function AdminPage() {
     setKineOk('')
     setModalKine(true)
   }
+  
+  const cargarQuejas = async () => {
+    try {
+      setLoadingQuejas(true)
+
+      const res = await obtenerQuejas()
+
+      if (res.data.mensaje === 'No hay quejas') {
+        setQuejas([])
+      } else {
+        setQuejas(res.data)
+      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoadingQuejas(false)
+    }
+  }
 
   const handleRegistrarKine = async () => {
     setKineError('')
@@ -152,6 +174,15 @@ export default function AdminPage() {
           <button style={s.btnBaja} onClick={abrirModalBaja}>
             Dar de baja usuario
           </button>
+
+          <button
+            onClick={() => {
+              setVista('quejas')
+              cargarQuejas()
+            }}
+          >
+            Ver listado de quejas
+          </button>
         </div>
 
         {verClientes && <Clientes />}
@@ -200,6 +231,41 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
+        {vista === 'quejas' && (
+          <div style={{
+            background: '#fff',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid #ddd'
+          }}>
+            <h2>Listado de Quejas</h2>
+
+            {loadingQuejas ? (
+              <p>Cargando...</p>
+            ) : quejas.length === 0 ? (
+              <p>No hay quejas</p>
+            ) : (
+              quejas.map((queja) => (
+                <div
+                  key={queja.id}
+                  style={{
+                    borderBottom: '1px solid #eee',
+                    padding: '12px 0'
+                  }}
+                >
+                  <strong>{queja.cliente_nombre}</strong>
+
+                  <p>{queja.descripcion}</p>
+
+                  <small>
+                    {new Date(queja.fecha_creacion).toLocaleString()}
+                  </small>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         <Clases precioPorDefecto={precio} refreshKines={refreshKines} />
       </main>
