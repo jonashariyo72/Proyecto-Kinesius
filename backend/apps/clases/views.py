@@ -5,11 +5,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-
+from rest_framework.views import APIView
 from .models import Clase
 from .serializers import ClaseSerializer
 from apps.reservas.models import Reserva
 from apps.pagos.models import PagoReserva
+import base64
+import qrcode
+import uuid
+import io
 
 
 class ClaseViewSet(viewsets.ModelViewSet):
@@ -194,3 +198,222 @@ class ClaseViewSet(viewsets.ModelViewSet):
         )
 
         return Response(serializer.data)
+    
+# ─────────────────────────────────────────
+# Generar QR de una clase
+# ─────────────────────────────────────────
+class GenerarQRClaseView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, clase_id):
+        try:
+            clase = Clase.objects.get(id=clase_id, activa=True)
+        except Clase.DoesNotExist:
+            return Response(
+                {'error': 'Clase no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Solo el kinesiólogo asignado o un admin puede generar el QR
+        user = request.user
+        es_admin = hasattr(user, 'administrador')
+        es_kinesiologo_asignado = (
+            hasattr(user, 'kinesiologo') and
+            clase.kinesiologo == user.kinesiologo
+        )
+
+        if not es_admin and not es_kinesiologo_asignado:
+            return Response(
+                {'error': 'No tiene permisos para generar el QR de esta clase'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # URL que va a abrir el celular al escanear
+        # En desarrollo usar la IP local o ngrok
+        base_url = request.build_absolute_uri('/').rstrip('/')
+        url_asistencia = f"{base_url}/api/clases/asistencia/qr/{clase.qr_token}/"
+
+        # Generar imagen QR
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(url_asistencia)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        # Convertir a base64 para enviar al frontend
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+        return Response({
+            'qr_image': f'data:image/png;base64,{img_base64}',
+            'qr_token': str(clase.qr_token),
+            'url_asistencia': url_asistencia,
+            'clase': {
+                'id': clase.id,
+                'tipo': clase.get_tipo_display(),
+                'fecha': str(clase.fecha_clase),
+                'hora': str(clase.hora_inicio),
+            }
+        })
+
+
+# ─────────────────────────────────────────
+# Registrar asistencia por QR
+# ─────────────────────────────────────────
+class AsistenciaQRView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, qr_token):
+        try:
+            clase = Clase.objects.get(qr_token=qr_token, activa=True)
+        except Clase.DoesNotExist:
+            return Response(
+                {'error': 'QR inválido o clase no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Verificar que quien escanea es un cliente
+        user = request.user
+        if not hasattr(user, 'cliente'):
+            return Response(
+                {'error': 'Solo los clientes pueden registrar asistencia por QR'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        cliente = user.cliente
+
+        # Verificar que tiene reserva confirmada para esta clase
+        try:
+            reserva = Reserva.objects.get(
+                clase=clase,
+                paciente=cliente,
+                estado='CONFIRMADA'
+            )
+        except Reserva.DoesNotExist:
+            return Response(
+                {'error': 'No tenés una reserva confirmada para esta clase'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if reserva.asistio:
+            return Response(
+                {'mensaje': 'Ya registraste tu asistencia para esta clase'},
+                status=status.HTTP_200_OK
+            )
+
+        reserva.asistio = True
+        reserva.save()
+
+        return Response({
+            'mensaje': f'Asistencia registrada correctamente para {clase.get_tipo_display()}',
+            'clase': clase.get_tipo_display(),
+            'fecha': str(clase.fecha_clase),
+            'hora': str(clase.hora_inicio),
+        })
+
+
+# ─────────────────────────────────────────
+# Cargar asistencia manual (kinesiólogo)
+# ─────────────────────────────────────────
+class AsistenciaManualView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, clase_id):
+        user = request.user
+        es_admin = hasattr(user, 'administrador')
+        es_kinesiologo = hasattr(user, 'kinesiologo')
+
+        if not es_admin and not es_kinesiologo:
+            return Response(
+                {'error': 'No tiene permisos para cargar asistencia'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            clase = Clase.objects.get(id=clase_id, activa=True)
+        except Clase.DoesNotExist:
+            return Response(
+                {'error': 'Clase no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        reserva_id = request.data.get('reserva_id')
+        asistio    = request.data.get('asistio')
+
+        if reserva_id is None or asistio is None:
+            return Response(
+                {'error': 'Se requieren reserva_id y asistio'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            reserva = Reserva.objects.get(id=reserva_id, clase=clase)
+        except Reserva.DoesNotExist:
+            return Response(
+                {'error': 'Reserva no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        reserva.asistio = asistio
+        reserva.save()
+
+        return Response({
+            'mensaje': f'Asistencia {"registrada" if asistio else "removida"} correctamente',
+            'reserva_id': reserva.id,
+            'paciente': str(reserva.paciente),
+            'asistio': reserva.asistio,
+        })
+
+
+# ─────────────────────────────────────────
+# Ver turnos del kinesiólogo autenticado
+# ─────────────────────────────────────────
+class MisClasesKinesiologoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if not hasattr(user, 'kinesiologo'):
+            return Response(
+                {'error': 'Solo los kinesiólogos pueden ver sus clases'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        clases = Clase.objects.filter(
+            kinesiologo=user.kinesiologo,
+            activa=True
+        ).order_by('fecha_clase', 'hora_inicio')
+
+        data = []
+        for clase in clases:
+            reservas = Reserva.objects.filter(
+                clase=clase,
+                estado='CONFIRMADA'
+            ).select_related('paciente__usuario')
+
+            pacientes = [{
+                'reserva_id':  r.id,
+                'nombre':      r.paciente.usuario.nombre,
+                'apellido':    r.paciente.usuario.apellido,
+                'asistio':     r.asistio,
+            } for r in reservas]
+
+            data.append({
+                'id':             clase.id,
+                'tipo':           clase.get_tipo_display(),
+                'fecha':          str(clase.fecha_clase),
+                'hora_inicio':    str(clase.hora_inicio),
+                'sala':           clase.sala,
+                'cupos_disponibles': clase.cupos_disponibles(),
+                'pacientes':      pacientes,
+            })
+
+        return Response(data)

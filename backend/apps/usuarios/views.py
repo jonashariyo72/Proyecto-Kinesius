@@ -156,7 +156,7 @@ class LoginView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        elif '@empleadokinescius' in email:
+        elif '@kinescius' in email:
 
             if not hasattr(user, 'kinesiologo'):
                 return Response(

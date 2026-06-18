@@ -145,6 +145,13 @@ function FormularioTarjeta({ tipoPago, montoSena, montoTotal, onConfirmar, onVol
     const errores = validar()
     if (Object.keys(errores).length > 0) { setErroresTarjeta(errores); return }
     const numeroLimpio = tarjeta.numero.replace(/\s/g, '')
+    const TARJETA_SIN_FONDOS = '5287338310253304' // Mastercard Débito
+
+    if (TARJETA_SIN_FONDOS === numeroLimpio && tarjeta.cvv === '123') {
+      onConfirmar('sin_fondos')
+      return
+    }
+
     const esValida = TARJETAS_VALIDAS.includes(numeroLimpio) && tarjeta.cvv === '123'
     onConfirmar(esValida)
   }
@@ -463,6 +470,12 @@ async function handleElegirMetodo(metodo) {
   async function handleConfirmarTarjeta(esValida) {
     setStep('procesando')
     await new Promise(r => setTimeout(r, 1500))
+    if (esValida === 'sin_fondos') {
+      setResultado({ exito: false, mensaje: 'La tarjeta ingresada no tiene fondos suficientes para realizar la transacción.' })
+      setStep('resultado')
+      return
+    }
+
     if (!esValida) {
       setResultado({ exito: false, mensaje: 'Transacción no realizada. La tarjeta ingresada no es válida.' })
       setStep('resultado')
