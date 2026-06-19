@@ -274,6 +274,32 @@ class ReservaViewSet(viewsets.ModelViewSet):
             "devolucion": str(devolucion)
         })
 
+    @action(detail=False, methods=['get'], url_path='inscriptos/(?P<clase_id>[^/.]+)')
+    def inscriptos_por_clase(self, request, clase_id=None):
+        """
+        Devuelve los clientes inscriptos a una clase.
+        GET /reservas/gestion/inscriptos/<clase_id>/
+        """
+
+        reservas = Reserva.objects.filter(
+            clase_id=clase_id,
+            estado='CONFIRMADA'
+        ).select_related('paciente__usuario')
+
+        data = [
+            {
+                'reserva_id': r.id,
+                'nombre': r.paciente.usuario.nombre,
+                'apellido': r.paciente.usuario.apellido,
+                'email': r.paciente.usuario.email,
+                'asistio': r.asistio,
+            }
+            for r in reservas
+        ]
+
+        return Response(data)
+
+
 class ListaEsperaViewSet(viewsets.ModelViewSet):
     queryset = ListaEspera.objects.all()
     serializer_class = ListaEsperaSerializer
