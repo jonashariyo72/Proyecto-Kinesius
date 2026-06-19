@@ -1,12 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ClaseViewSet
+from .views import ClaseViewSet, GenerarQRClaseView, AsistenciaQRView, AsistenciaManualView, MisClasesKinesiologoView
 
 router = DefaultRouter()
-
 router.register(r'', ClaseViewSet, basename='clase')
 
 urlpatterns = [
+    path('generar-qr/<int:clase_id>/',        GenerarQRClaseView.as_view(),       name='generar-qr'),
+    path('asistencia/qr/<uuid:qr_token>/',    AsistenciaQRView.as_view(),         name='asistencia-qr'),
+    path('asistencia/manual/<int:clase_id>/', AsistenciaManualView.as_view(),     name='asistencia-manual'),
     path('', include(router.urls)),
 ]
 
