@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from apps.usuarios.models import Kinesiologo
+import uuid
 
 
 class Clase(models.Model):
@@ -35,6 +36,11 @@ class Clase(models.Model):
         null=True,
         blank=True,
         related_name='clases'
+    )
+    qr_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False
     )
 
     class Meta:

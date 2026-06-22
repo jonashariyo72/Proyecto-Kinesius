@@ -5,7 +5,7 @@ import re
 from .models import Usuario, Cliente, Kinesiologo, Administrador
 
 
-#Validadores
+# Validadores
 
 def validar_password(password):
     if not (8 <= len(password) <= 16):
@@ -46,6 +46,14 @@ def validar_dni(dni):
     return dni
 
 
+def validar_dni_kine(dni):
+    if not re.match(r'^\d{7,8}$', dni):
+        raise serializers.ValidationError(
+            'Error al registrar el nuevo kinesiólogo porque el DNI ingresado no es válido.'
+        )
+    return dni
+
+
 def validar_email_formato(email):
     try:
         validate_email(email)
@@ -54,6 +62,9 @@ def validar_email_formato(email):
             'Error al registrar el nuevo usuario porque el mail ingresado no es válido.'
         )
     return email
+
+
+DOMINIO_KINESIOLOGO = 'kinescius.com'
 
 
 class RegistroClienteSerializer(serializers.ModelSerializer):
@@ -68,14 +79,14 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         validar_email_formato(value)
-        
+
         dominios_permitidos = ['gmail.com', 'outlook.com', 'hotmail.com', 'unlp.edu.ar']
         dominio = value.split('@')[-1].lower()
         if dominio not in dominios_permitidos:
             raise serializers.ValidationError(
                 'Solo se permiten correos de Gmail, Outlook, Hotmail o UNLP (@unlp.edu.ar).'
             )
-        
+
         if Usuario.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 'Error al registrar el nuevo usuario porque el correo electrónico ya existe en el sistema.'
@@ -100,20 +111,31 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
         return usuario
 
 
-
-
 class RegistroKinesiologoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Usuario
         fields = ['nombre', 'apellido', 'dni', 'email']
+        extra_kwargs = {
+            'email': {'validators': []},  # desactiva el validador único de Django
+        }
 
     def validate_email(self, value):
-        validar_email_formato(value)
-        if not value.endswith('@empleadoKinescius'):
+        # Primero validamos que sea un email con formato válido
+        try:
+            validate_email(value)
+        except ValidationError:
             raise serializers.ValidationError(
                 'Error al registrar el nuevo kinesiólogo porque el mail ingresado no es válido.'
             )
+
+        # Luego validamos que el dominio sea exactamente @kinescius.com
+        dominio = value.split('@')[-1].lower()
+        if dominio != DOMINIO_KINESIOLOGO:
+            raise serializers.ValidationError(
+                'Error al registrar el nuevo kinesiólogo porque el mail ingresado no es válido.'
+            )
+
         if Usuario.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 'Error al registrar el nuevo kinesiólogo por correo electrónico ya existente en el sistema.'
@@ -121,7 +143,7 @@ class RegistroKinesiologoSerializer(serializers.ModelSerializer):
         return value
 
     def validate_dni(self, value):
-        validar_dni(value)
+        validar_dni_kine(value)
         if Usuario.objects.filter(dni=value).exists():
             raise serializers.ValidationError(
                 'Error al registrar el nuevo kinesiólogo por DNI ya existente en el sistema.'
@@ -131,19 +153,33 @@ class RegistroKinesiologoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         import secrets
         import string
+        from django.core.mail import send_mail
+
         caracteres = string.ascii_letters + string.digits + '!@#$%'
         password   = 'K' + ''.join(secrets.choice(caracteres) for _ in range(12)) + '!'
         usuario    = Usuario.objects.create_user(password=password, **validated_data)
         Kinesiologo.objects.create(usuario=usuario)
-        # TODO: enviar mail con la contraseña generada
-        return usuario
 
+        send_mail(
+            subject='Bienvenido a Kinescius - Tus credenciales de acceso',
+            message=(
+                f'Hola {usuario.nombre},\n\n'
+                f'Tu cuenta de kinesiólogo fue creada exitosamente.\n'
+                f'Email: {usuario.email}\n'
+                f'Contraseña temporal: {password}\n\n'
+                f'Por seguridad, te recomendamos cambiarla al iniciar sesión por primera vez.'
+            ),
+            from_email='info@kinescius.com.ar',
+            recipient_list=[usuario.email],
+            fail_silently=True,
+        )
+
+        return usuario
 
 
 class LoginSerializer(serializers.Serializer):
     email    = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-
 
 
 # Verificación 2FA (solo Admin)

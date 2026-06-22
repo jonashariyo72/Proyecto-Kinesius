@@ -5,7 +5,6 @@ import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
 import KinesciusHome from './pages/KinesciusHome'
 import ResetPasswordPage from './pages/ResetPasswordPage'
-
 import ClientePage from './pages/ClientePage'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import RecuperarPasswordPage from './pages/RecuperarPasswordPage'
@@ -15,7 +14,7 @@ import ResponderListaEsperaPage from './pages/ResponderListaEsperaPage'
 import PagoListaEsperaPage from './pages/PagoListaEsperaPage'
 
 import { PagoExitoso, PagoFallido, PagoPendiente } from './pages/PagoRetornoPages'
-
+import KinesiologoPage from './pages/KinesiologoPage'
 
 // Redirige según el rol al entrar a "/dashboard"
 function RutaInicio() {
@@ -55,9 +54,9 @@ export default function App() {
             </RutaProtegida>
           } />
 
-          <Route path="/kinesiologo" element={
+         <Route path="/kinesiologo" element={
             <RutaProtegida rolRequerido="kinesiologo">
-              <div style={{padding:'2rem'}}>Panel Kinesiólogo — próximamente</div>
+              <KinesiologoPage />
             </RutaProtegida>
           } />
 
