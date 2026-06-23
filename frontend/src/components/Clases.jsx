@@ -64,7 +64,11 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
   const [modalEliminar, setModalEliminar]         = useState(null)
   const [toast, setToast]                         = useState('')
 
-  const formularioCompleto =
+  const [modalBuscarClase, setModalBuscarClase] = useState(null) // clase seleccionada
+  const [buscarQuery, setBuscarQuery]           = useState('')
+  const [buscarResultados, setBuscarResultados] = useState(null)
+  const [buscarError, setBuscarError]           = useState('')
+  const [buscarLoading, setBuscarLoading]       = useState(false)
     form.tipo && form.fecha && form.hora_inicio && form.sala && form.kinesiologo
 
   const cargar = async () => {
@@ -160,6 +164,34 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
       else setFormError('No se pudo guardar la clase.')
     } finally {
       setGuardando(false)
+    }
+  }
+
+  const abrirBuscarClase = (clase) => {
+    setModalBuscarClase(clase)
+    setBuscarQuery('')
+    setBuscarResultados(null)
+    setBuscarError('')
+  }
+
+  const buscarEnClase = async () => {
+    if (!buscarQuery.trim()) {
+      setBuscarError('Ingresá un nombre o DNI.')
+      return
+    }
+    setBuscarError('')
+    setBuscarResultados(null)
+    setBuscarLoading(true)
+    try {
+      const res = await api.get(
+        `/usuarios/buscar-cliente-kinesiologo/?q=${encodeURIComponent(buscarQuery)}&clase_id=${modalBuscarClase.id}`
+      )
+      setBuscarResultados(res.data)
+    } catch (err) {
+      const msg = err.response?.data?.error ?? 'Error al buscar.'
+      setBuscarError(msg)
+    } finally {
+      setBuscarLoading(false)
     }
   }
 
@@ -262,8 +294,11 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
             {/* Botones para Kinesiólogo */}
             {c.activa && modoKinesiologo && (
               <div style={s.acciones}>
-                <button style={s.btnEditar} onClick={() => setModalInscriptos(c)}>
+                <button style={s.btnVerInscriptos} onClick={() => setModalInscriptos(c)}>
                   Ver inscriptos
+                </button>
+                <button style={s.btnBuscarCliente} onClick={() => abrirBuscarClase(c)}>
+                  Buscar cliente
                 </button>
               </div>
             )}
@@ -396,6 +431,61 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
           onCerrar={() => setModalInscriptos(null)}
         />
       )}
+      {modalBuscarClase && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <h2 style={s.modalTitulo}>
+              Buscar cliente en {modalBuscarClase.hora_inicio?.slice(0,5)} hs — {modalBuscarClase.dia}
+            </h2>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input
+                style={{ ...s.input, flex: 1 }}
+                placeholder="Nombre o DNI..."
+                value={buscarQuery}
+                onChange={e => setBuscarQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && buscarEnClase()}
+                autoFocus
+              />
+              <button
+                style={{ ...s.btnVerde, padding: '0 16px', opacity: buscarLoading ? 0.7 : 1 }}
+                onClick={buscarEnClase}
+                disabled={buscarLoading}
+              >
+                {buscarLoading ? '...' : 'Buscar'}
+              </button>
+            </div>
+
+            {buscarError && (
+              <p style={{ fontSize: 13, color: '#c0392b', background: '#fdf0f0', padding: '8px 12px', borderRadius: 8, margin: '0 0 8px' }}>
+                {buscarError}
+              </p>
+            )}
+
+            {buscarResultados && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 260, overflowY: 'auto' }}>
+                {buscarResultados.map(c => (
+                  <div key={c.id} style={{ background: '#f5f6f7', borderRadius: 8, padding: '10px 14px' }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{c.nombre} {c.apellido}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 13, color: '#555' }}>DNI: {c.dni}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 13, color: '#555' }}>{c.email}</p>
+                    {c.suspendido && <span style={{ fontSize: 11, fontWeight: 600, background: '#fdf0f0', color: '#c0392b', padding: '2px 8px', borderRadius: 20 }}>Suspendido</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: 12 }}>
+              <button
+                style={s.btnCancelar}
+                onClick={() => { setModalBuscarClase(null); setBuscarResultados(null) }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -424,7 +514,8 @@ const s = {
   llena: { fontSize: 11, fontWeight: 700, color: '#c0392b', background: '#fdecea', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
   inactiva: { fontSize: 11, fontWeight: 700, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
   acciones: { display: 'flex', gap: 8, marginTop: 4 },
-  btnEditar: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, cursor: 'pointer' },
+  btnVerInscriptos: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
+  btnBuscarCliente: { flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
   btnEliminar: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e74c3c', background: 'transparent', color: '#e74c3c', fontSize: 13, cursor: 'pointer' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   modal: { background: '#fff', borderRadius: 14, padding: '2rem', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' },

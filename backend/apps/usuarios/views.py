@@ -13,7 +13,7 @@ import random
 import string
 from .serializers import validar_password2
 
-from .permissions import EsAdministrador
+from .permissions import EsAdministrador, EsAdminOKinesiologo
 from .models import Usuario, Administrador, Kinesiologo, Cliente
 from .serializers import (
     RegistroClienteSerializer,
@@ -122,6 +122,7 @@ class LoginView(APIView):
             )
 
         # Detectar rol por dominio del mail
+        dominio = email.split('@')[-1].lower()
 
         if '@adminkinescius' in email:
 
@@ -156,7 +157,7 @@ class LoginView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        elif '@kinescius' in email:
+        elif dominio == 'kinescius.com':
 
             if not hasattr(user, 'kinesiologo'):
                 return Response(
@@ -325,6 +326,7 @@ class CambiarPasswordView(APIView):
             {'mensaje': 'Contraseña actualizada correctamente'},
             status=status.HTTP_200_OK
         )
+
     
 class PerfilKinesiologoView(APIView):
     permission_classes = [IsAuthenticated]
@@ -345,6 +347,7 @@ class PerfilClienteView(APIView):
         if not cliente:
             return Response({'error': 'No es cliente'}, status=403)
         return Response({'id': cliente.id, 'email': request.user.email})
+
     
 #Recuperar contraseña
 class RecuperarPasswordView(APIView):
@@ -456,14 +459,19 @@ class ResetPasswordPublicView(APIView):
         )
 
 
-
 # Dar de baja un cliente o kinesiólogo
 
 class BajaUsuarioView(APIView):
     permission_classes = [EsAdministrador]
 
     def post(self, request):
-        dni = request.data.get('dni', '').strip()
+        from apps.reservas.models import Reserva
+        from apps.clases.models import Clase
+
+        dni  = request.data.get('dni', '').strip()
+        rol  = request.data.get('rol', '').strip()  # 'cliente' o 'kinesiologo'
+        # Para reasignación de clases cuando se da de baja un kine
+        nuevo_kine_id = request.data.get('nuevo_kinesiologo_id', None)
 
         if not dni:
             return Response(
@@ -471,13 +479,80 @@ class BajaUsuarioView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            usuario = Usuario.objects.get(dni=dni)
-        except Usuario.DoesNotExist:
+        if not rol or rol not in ('cliente', 'kinesiologo'):
             return Response(
-                {'error': 'Error en la baja por DNI no perteneciente a un usuario'},
-                status=status.HTTP_404_NOT_FOUND
+                {'error': 'Por favor, indique el rol: "cliente" o "kinesiologo".'},
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Buscar usuario según rol
+        if rol == 'cliente':
+            try:
+                usuario = Usuario.objects.get(dni=dni, cliente__isnull=False)
+            except Usuario.DoesNotExist:
+                return Response(
+                    {'error': 'Error en la baja por DNI no perteneciente a un usuario'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # No se puede dar de baja si tiene reservas activas
+            reservas_activas = Reserva.objects.filter(
+                paciente=usuario.cliente,
+                estado__in=('CONFIRMADA', 'PENDIENTE')
+            ).exists()
+
+            if reservas_activas:
+                return Response(
+                    {'error': 'No se puede dar de baja al cliente porque tiene reservas activas.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        else:  # kinesiologo
+            try:
+                usuario = Usuario.objects.get(dni=dni, kinesiologo__isnull=False)
+            except Usuario.DoesNotExist:
+                return Response(
+                    {'error': 'Error en la baja por DNI no perteneciente a un usuario'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Verificar si tiene clases asignadas
+            clases_asignadas = Clase.objects.filter(
+                kinesiologo=usuario.kinesiologo,
+                activa=True
+            )
+
+            if clases_asignadas.exists():
+                # Si no se mandó un nuevo kinesiólogo, pedir reasignación
+                if not nuevo_kine_id:
+                    clases_data = [
+                        {
+                            'id':          c.id,
+                            'tipo':        c.get_tipo_display(),
+                            'dia':         c.get_dia_display(),
+                            'hora_inicio': str(c.hora_inicio),
+                        }
+                        for c in clases_asignadas
+                    ]
+                    return Response(
+                        {
+                            'requiere_reasignacion': True,
+                            'clases': clases_data,
+                            'mensaje': 'El kinesiólogo tiene clases asignadas. Seleccioná un kinesiólogo para reasignarlas.'
+                        },
+                        status=status.HTTP_200_OK
+                    )
+
+                # Reasignar clases al nuevo kinesiólogo
+                try:
+                    nuevo_kine = Kinesiologo.objects.get(id=nuevo_kine_id, usuario__is_active=True)
+                except Kinesiologo.DoesNotExist:
+                    return Response(
+                        {'error': 'El kinesiólogo seleccionado para reasignación no existe.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                clases_asignadas.update(kinesiologo=nuevo_kine)
 
         if hasattr(usuario, 'administrador'):
             return Response(
@@ -498,6 +573,138 @@ class BajaUsuarioView(APIView):
             {'mensaje': 'Baja exitosa'},
             status=status.HTTP_200_OK
         )
+
+
+# Buscar cliente por nombre o DNI (Admin o Kinesiólogo)
+
+class BuscarClienteView(APIView):
+    permission_classes = [EsAdminOKinesiologo]
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+
+        if not query:
+            return Response(
+                {'error': 'Por favor, ingrese un nombre o DNI para buscar.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        es_dni = query.replace(' ', '').isdigit()
+
+        if es_dni:
+            clientes = Cliente.objects.select_related('usuario').filter(
+                usuario__dni__icontains=query,
+                usuario__is_active=True,
+            )
+        else:
+            from django.db.models import Q
+            partes = query.split()
+            q_filter = Q()
+            for parte in partes:
+                q_filter |= Q(usuario__nombre__icontains=parte) | Q(usuario__apellido__icontains=parte)
+
+            clientes = Cliente.objects.select_related('usuario').filter(
+                q_filter,
+                usuario__is_active=True,
+            ).distinct()
+
+        if not clientes.exists():
+            mensaje = (
+                'No hay coincidencias para el DNI ingresado'
+                if es_dni else
+                'No hay coincidencias para el nombre ingresado'
+            )
+            return Response({'error': mensaje}, status=status.HTTP_404_NOT_FOUND)
+
+        data = [
+            {
+                'id':       c.id,
+                'nombre':   c.usuario.nombre,
+                'apellido': c.usuario.apellido,
+                'dni':      c.usuario.dni,
+                'email':    c.usuario.email,
+                'telefono': c.usuario.telefono or '',
+                'es_abonado':         c.es_abonado,
+                'fecha_venc_cuota':   str(c.fecha_venc_cuota) if c.fecha_venc_cuota else None,
+                'suspendido':         c.suspendido,
+                'cant_cancelaciones': c.cant_cancelaciones,
+            }
+            for c in clientes
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+# Buscar cliente dentro de las clases del kinesiólogo logueado
+
+class BuscarClienteKinesiologoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.reservas.models import Reserva
+        from django.db.models import Q
+
+        kine = getattr(request.user, 'kinesiologo', None)
+        if not kine:
+            return Response({'error': 'No es kinesiólogo'}, status=403)
+
+        query = request.query_params.get('q', '').strip()
+
+        if not query:
+            return Response(
+                {'error': 'Por favor, ingrese un nombre o DNI para buscar.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Clientes que tienen reservas CONFIRMADAS en clases de este kine
+        clientes_base = Cliente.objects.select_related('usuario').filter(
+            reservas__clase__kinesiologo=kine,
+            reservas__estado='CONFIRMADA',
+            usuario__is_active=True,
+        )
+
+        # Si se pasa clase_id, filtrar solo esa clase
+        clase_id = request.query_params.get('clase_id', None)
+        if clase_id:
+            clientes_base = clientes_base.filter(reservas__clase__id=clase_id)
+
+        clientes_base = clientes_base.distinct()
+
+        es_dni = query.replace(' ', '').isdigit()
+
+        if es_dni:
+            clientes = clientes_base.filter(usuario__dni__icontains=query)
+        else:
+            partes = query.split()
+            q_filter = Q()
+            for parte in partes:
+                q_filter |= Q(usuario__nombre__icontains=parte) | Q(usuario__apellido__icontains=parte)
+            clientes = clientes_base.filter(q_filter)
+
+        if not clientes.exists():
+            mensaje = (
+                'No hay coincidencias para el DNI ingresado'
+                if es_dni else
+                'No hay coincidencias para el nombre ingresado'
+            )
+            return Response({'error': mensaje}, status=status.HTTP_404_NOT_FOUND)
+
+        data = [
+            {
+                'id':       c.id,
+                'nombre':   c.usuario.nombre,
+                'apellido': c.usuario.apellido,
+                'dni':      c.usuario.dni,
+                'email':    c.usuario.email,
+                'telefono': c.usuario.telefono or '',
+                'es_abonado':         c.es_abonado,
+                'suspendido':         c.suspendido,
+                'cant_cancelaciones': c.cant_cancelaciones,
+            }
+            for c in clientes
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class ListaClientesView(APIView):
