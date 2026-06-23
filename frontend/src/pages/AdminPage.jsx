@@ -23,11 +23,17 @@ export default function AdminPage() {
   const [refreshKines, setRefreshKines] = useState(0)
 
   // Modal baja usuario
-  const [modalBaja, setModalBaja] = useState(false)
-  const [bajaDni, setBajaDni]     = useState('')
-  const [bajaError, setBajaError] = useState('')
-  const [bajaOk, setBajaOk]       = useState('')
-  const [bajaLoading, setBajaLoading] = useState(false)
+  const [modalBaja, setModalBaja]             = useState(false)
+  const [bajaDni, setBajaDni]                 = useState('')
+  const [bajaRol, setBajaRol]                 = useState('cliente')
+  const [bajaError, setBajaError]             = useState('')
+  const [bajaOk, setBajaOk]                   = useState('')
+  const [bajaLoading, setBajaLoading]         = useState(false)
+  // Reasignación de clases cuando se da de baja un kine
+  const [clasesKine, setClasesKine]           = useState([])
+  const [requiereReasignacion, setRequiereReasignacion] = useState(false)
+  const [nuevoKineId, setNuevoKineId]         = useState('')
+  const [kinesiologos, setKinesiologos]       = useState([])
 
   // Modal registro kine
   const [modalKine, setModalKine] = useState(false)
@@ -49,33 +55,54 @@ export default function AdminPage() {
     }
   }
 
-  const abrirModalBaja = () => {
+  const abrirModalBaja = async () => {
     setBajaDni('')
+    setBajaRol('cliente')
     setBajaError('')
     setBajaOk('')
+    setClasesKine([])
+    setRequiereReasignacion(false)
+    setNuevoKineId('')
     setModalBaja(true)
+    // Cargar lista de kines para reasignación
+    try {
+      const res = await fetch(`${API}/usuarios/kinesiologos/`, {
+        headers: { 'Authorization': `Bearer ${access}` },
+      })
+      const data = await res.json()
+      setKinesiologos(Array.isArray(data) ? data : data.results ?? [])
+    } catch { /* silencioso */ }
   }
 
-  const handleBaja = async () => {
+  const handleBaja = async (nuevo_kinesiologo_id = null) => {
     setBajaError('')
     setBajaOk('')
     setBajaLoading(true)
 
     try {
+      const body = { dni: bajaDni, rol: bajaRol }
+      if (nuevo_kinesiologo_id) body.nuevo_kinesiologo_id = nuevo_kinesiologo_id
+
       const res = await fetch(`${API}/usuarios/baja-usuario/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${access}`,
         },
-        body: JSON.stringify({ dni: bajaDni }),
+        body: JSON.stringify(body),
       })
 
       const data = await res.json()
 
-      if (res.ok) {
+      if (res.ok && data.requiere_reasignacion) {
+        // El kine tiene clases — pedir reasignación
+        setClasesKine(data.clases)
+        setRequiereReasignacion(true)
+      } else if (res.ok) {
         setBajaOk(data.mensaje)
         setBajaDni('')
+        setRequiereReasignacion(false)
+        setClasesKine([])
         setRefreshKines(n => n + 1)
       } else {
         setBajaError(data.error ?? 'Error al dar de baja.')
@@ -361,38 +388,95 @@ export default function AdminPage() {
         <div style={s.overlay}>
           <div style={s.modal}>
             <h3 style={s.modalTitulo}>Dar de baja usuario</h3>
-            <p style={s.modalTexto}>Ingresá el DNI del cliente o kinesiólogo que querés dar de baja.</p>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>DNI</label>
-              <input
-                style={s.input}
-                placeholder="45913234"
-                value={bajaDni}
-                onChange={e => setBajaDni(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleBaja()}
-              />
-            </div>
+            {!requiereReasignacion ? (
+              <>
+                <p style={s.modalTexto}>Ingresá el DNI y el rol del usuario que querés dar de baja.</p>
 
-            {bajaError && <p style={s.error}>{bajaError}</p>}
-            {bajaOk    && <p style={s.ok}>{bajaOk}</p>}
+                <div style={s.formGroup}>
+                  <label style={s.label}>Rol</label>
+                  <select
+                    style={s.input}
+                    value={bajaRol}
+                    onChange={e => setBajaRol(e.target.value)}
+                  >
+                    <option value="cliente">Cliente</option>
+                    <option value="kinesiologo">Kinesiólogo</option>
+                  </select>
+                </div>
 
-            <div style={s.botonesRow}>
-              <button
-                style={s.btnCancelar}
-                onClick={() => setModalBaja(false)}
-                disabled={bajaLoading}
-              >
-                Cancelar
-              </button>
-              <button
-                style={{ ...s.btnBajaConfirmar, opacity: bajaLoading ? 0.7 : 1 }}
-                onClick={handleBaja}
-                disabled={bajaLoading}
-              >
-                {bajaLoading ? 'Procesando...' : 'Dar de baja'}
-              </button>
-            </div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>DNI</label>
+                  <input
+                    style={s.input}
+                    placeholder="45913234"
+                    value={bajaDni}
+                    onChange={e => setBajaDni(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleBaja()}
+                  />
+                </div>
+
+                {bajaError && <p style={s.error}>{bajaError}</p>}
+                {bajaOk    && <p style={s.ok}>{bajaOk}</p>}
+
+                <div style={s.botonesRow}>
+                  <button style={s.btnCancelar} onClick={() => setModalBaja(false)} disabled={bajaLoading}>
+                    Cancelar
+                  </button>
+                  <button
+                    style={{ ...s.btnBajaConfirmar, opacity: bajaLoading ? 0.7 : 1 }}
+                    onClick={() => handleBaja()}
+                    disabled={bajaLoading}
+                  >
+                    {bajaLoading ? 'Procesando...' : 'Dar de baja'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={s.modalTexto}>
+                  Este kinesiólogo tiene <strong>{clasesKine.length}</strong> clase(s) activa(s). 
+                  Seleccioná un kinesiólogo para reasignarlas antes de continuar.
+                </p>
+
+                <div style={s.clasesList}>
+                  {clasesKine.map(c => (
+                    <div key={c.id} style={s.claseItem}>
+                      {c.tipo} — {c.dia} {c.hora_inicio}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={s.formGroup}>
+                  <label style={s.label}>Reasignar a</label>
+                  <select
+                    style={s.input}
+                    value={nuevoKineId}
+                    onChange={e => setNuevoKineId(e.target.value)}
+                  >
+                    <option value="">Seleccioná un kinesiólogo...</option>
+                    {kinesiologos.map(k => (
+                      <option key={k.id} value={k.id}>{k.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {bajaError && <p style={s.error}>{bajaError}</p>}
+
+                <div style={s.botonesRow}>
+                  <button style={s.btnCancelar} onClick={() => { setRequiereReasignacion(false); setClasesKine([]) }}>
+                    Atrás
+                  </button>
+                  <button
+                    style={{ ...s.btnBajaConfirmar, opacity: (!nuevoKineId || bajaLoading) ? 0.5 : 1 }}
+                    onClick={() => handleBaja(nuevoKineId)}
+                    disabled={!nuevoKineId || bajaLoading}
+                  >
+                    {bajaLoading ? 'Procesando...' : 'Confirmar baja'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -447,9 +531,11 @@ const s = {
   btnCancelar: { flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer', color: '#555' },
   btnConfirmarVerde: { flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
 
-  formGroup: { display: 'flex', flexDirection: 'column', gap: 4 },
+  clasesList: { display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 120, overflowY: 'auto' },
+  claseItem:  { fontSize: 13, color: '#555', background: '#f5f6f7', padding: '6px 10px', borderRadius: 6 },
+  formGroup: { display: 'flex', flexDirection: 'column', gap: 6, width: '100%' },
   label:     { fontSize: 12, fontWeight: 600, color: '#555' },
-  input:     { padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' },
+  input:     { padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' },
   error:     { fontSize: 13, color: '#c0392b', margin: 0, background: '#fdf0f0', padding: '8px 12px', borderRadius: 8 },
   ok:        { fontSize: 13, color: '#2d6a2d', margin: 0, background: '#e8f5e9', padding: '8px 12px', borderRadius: 8 },
 }

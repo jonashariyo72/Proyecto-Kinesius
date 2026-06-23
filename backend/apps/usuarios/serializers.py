@@ -74,7 +74,7 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
         model  = Usuario
         fields = ['nombre', 'apellido', 'dni', 'email', 'password']
         extra_kwargs = {
-            'email': {'validators': []},  # ← desactiva el validador único de Django
+            'email': {'validators': []},
         }
 
     def validate_email(self, value):
@@ -95,7 +95,9 @@ class RegistroClienteSerializer(serializers.ModelSerializer):
 
     def validate_dni(self, value):
         validar_dni(value)
-        if Usuario.objects.filter(dni=value).exists():
+        # Un DNI puede existir como kinesiólogo pero no como otro cliente
+        dni_existente = Usuario.objects.filter(dni=value, cliente__isnull=False)
+        if dni_existente.exists():
             raise serializers.ValidationError(
                 'Error al registrar el nuevo usuario por DNI ya existente en el sistema.'
             )
@@ -117,11 +119,10 @@ class RegistroKinesiologoSerializer(serializers.ModelSerializer):
         model  = Usuario
         fields = ['nombre', 'apellido', 'dni', 'email']
         extra_kwargs = {
-            'email': {'validators': []},  # desactiva el validador único de Django
+            'email': {'validators': []},
         }
 
     def validate_email(self, value):
-        # Primero validamos que sea un email con formato válido
         try:
             validate_email(value)
         except ValidationError:
@@ -129,7 +130,6 @@ class RegistroKinesiologoSerializer(serializers.ModelSerializer):
                 'Error al registrar el nuevo kinesiólogo porque el mail ingresado no es válido.'
             )
 
-        # Luego validamos que el dominio sea exactamente @kinescius.com
         dominio = value.split('@')[-1].lower()
         if dominio != DOMINIO_KINESIOLOGO:
             raise serializers.ValidationError(
@@ -144,7 +144,9 @@ class RegistroKinesiologoSerializer(serializers.ModelSerializer):
 
     def validate_dni(self, value):
         validar_dni_kine(value)
-        if Usuario.objects.filter(dni=value).exists():
+        # Un DNI puede existir como cliente pero no como otro kinesiólogo
+        dni_existente = Usuario.objects.filter(dni=value, kinesiologo__isnull=False)
+        if dni_existente.exists():
             raise serializers.ValidationError(
                 'Error al registrar el nuevo kinesiólogo por DNI ya existente en el sistema.'
             )
@@ -181,8 +183,6 @@ class LoginSerializer(serializers.Serializer):
     email    = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
-
-# Verificación 2FA (solo Admin)
 
 class Verificacion2FASerializer(serializers.Serializer):
     email  = serializers.EmailField()
