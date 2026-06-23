@@ -3,7 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
+from dateutil.relativedelta import relativedelta
+from .models import PagoCuota
+from .serializers import PagoCuotaSerializer
+from datetime import date
 from .models import PagoReserva
 from .serializers import ConfirmarPagoSerializer, PagoReservaSerializer
 from apps.usuarios.permissions import EsAdministrador
@@ -428,3 +431,212 @@ class VerificarPagoMPView(APIView):
         reserva.delete()
 
         return Response({'estado': 'rechazado'}, status=status.HTTP_200_OK)
+    
+def primer_dia_mes_actual():
+    hoy = date.today()
+    return date(hoy.year, hoy.month, 1)
+ 
+ 
+class IniciarPagoCuotaView(APIView):
+    """
+    POST /api/pagos/cuota/iniciar/
+    Inicia el pago de la cuota mensual vía Mercado Pago para el cliente autenticado.
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def post(self, request):
+        cliente = getattr(request.user, 'cliente', None)
+        if not cliente:
+            return Response({'error': 'Solo los clientes pueden pagar la cuota.'}, status=status.HTTP_403_FORBIDDEN)
+ 
+        periodo = primer_dia_mes_actual()
+ 
+        # Si ya pagó este mes, no permitir doble pago
+        ya_pago = PagoCuota.objects.filter(
+            cliente=cliente, periodo=periodo, estado='aprobado'
+        ).exists()
+        if ya_pago:
+            return Response({'error': 'Ya abonaste la cuota de este mes.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        MONTO_CUOTA = Decimal('25000.00')  # ajustar según precio real de la cuota
+ 
+        pago_cuota, created = PagoCuota.objects.get_or_create(
+            cliente=cliente,
+            periodo=periodo,
+            estado='pendiente',
+            defaults={
+                'monto': MONTO_CUOTA,
+                'metodo_pago': 'mercadopago',
+            }
+        )
+ 
+        # Reutilizamos el servicio de MP, igual que con PagoReserva.
+        # generar_preferencia_mp espera un objeto con .pk, .monto_abonado, .cliente, etc.
+        # Le pasamos un wrapper liviano para no romper la firma del servicio.
+        clase_wrapper = type('CuotaWrapper', (), {
+            'pk': pago_cuota.pk,
+            'id': pago_cuota.pk,
+            'monto_abonado': pago_cuota.monto,
+            'cliente': cliente,
+            'get_tipo_pago_display': lambda self=None: 'Cuota Mensual',
+        })()
+ 
+        try:
+            init_point = generar_preferencia_mp(clase_wrapper)
+        except Exception as e:
+            return Response(
+                {'error': f'Error al conectar con Mercado Pago: {str(e)}'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+ 
+        return Response(
+            {
+                'pago_cuota_id': pago_cuota.pk,
+                'monto':         str(pago_cuota.monto),
+                'periodo':       str(pago_cuota.periodo),
+                'mp_init_point': init_point,
+            },
+            status=status.HTTP_201_CREATED
+        )
+ 
+ 
+class ConfirmarPagoCuotaView(APIView):
+    """
+    POST /api/pagos/cuota/confirmar/
+    Confirma el pago de cuota (llamado tras volver de Mercado Pago,
+    o por VerificarPagoCuotaMPView).
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def post(self, request):
+        pago_cuota_id = request.data.get('pago_cuota_id')
+        id_transaccion_externa = request.data.get('id_transaccion_externa')
+ 
+        try:
+            pago_cuota = PagoCuota.objects.select_related('cliente').get(pk=pago_cuota_id)
+        except PagoCuota.DoesNotExist:
+            return Response({'error': 'Pago de cuota no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+ 
+        cliente = getattr(request.user, 'cliente', None)
+        if not cliente or pago_cuota.cliente != cliente:
+            return Response({'error': 'No tenés permiso para confirmar este pago.'}, status=status.HTTP_403_FORBIDDEN)
+ 
+        if pago_cuota.estado != 'pendiente':
+            return Response({'error': f'Este pago ya fue procesado: {pago_cuota.get_estado_display()}.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        estado_final = 'aprobado'
+        if id_transaccion_externa:
+            pago_mp = obtener_pago_mp(id_transaccion_externa)
+            estado_final = 'aprobado' if pago_mp.get('status') == 'approved' else 'rechazado'
+            pago_cuota.id_transaccion_externa = id_transaccion_externa
+ 
+        pago_cuota.estado = estado_final
+        pago_cuota.save()
+ 
+        if estado_final == 'aprobado':
+            # Marcar al cliente como abonado y renovar su fecha de vencimiento
+            cliente.es_abonado = True
+            cliente.fecha_venc_cuota = pago_cuota.periodo + relativedelta(months=1)
+            cliente.save()
+ 
+        return Response(
+            {
+                'mensaje': f'Cuota {pago_cuota.get_estado_display()} correctamente.',
+                'pago':    PagoCuotaSerializer(pago_cuota).data,
+            },
+            status=status.HTTP_200_OK
+        )
+ 
+ 
+class VerificarPagoCuotaMPView(APIView):
+    """
+    POST /api/pagos/cuota/verificar-mp/
+    Igual que VerificarPagoMPView pero para PagoCuota.
+    """
+    permission_classes = [AllowAny]
+ 
+    def post(self, request):
+        pago_cuota_id = request.data.get('pago_cuota_id')
+ 
+        if not pago_cuota_id:
+            return Response({'error': 'Falta pago_cuota_id.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        try:
+            pago_cuota = PagoCuota.objects.select_related('cliente').get(pk=pago_cuota_id)
+        except PagoCuota.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+ 
+        pago_mp = buscar_pago_por_external_reference(pago_cuota_id)
+ 
+        if not pago_mp:
+            return Response({'estado': 'pendiente'}, status=status.HTTP_200_OK)
+ 
+        if pago_mp.get('status') == 'approved':
+            pago_cuota.estado = 'aprobado'
+            pago_cuota.id_transaccion_externa = str(pago_mp.get('id'))
+            pago_cuota.save()
+ 
+            cliente = pago_cuota.cliente
+            cliente.es_abonado = True
+            cliente.fecha_venc_cuota = pago_cuota.periodo + relativedelta(months=1)
+            cliente.save()
+ 
+            return Response({'estado': 'aprobado'}, status=status.HTTP_200_OK)
+ 
+        pago_cuota.estado = 'rechazado'
+        pago_cuota.save()
+        return Response({'estado': 'rechazado'}, status=status.HTTP_200_OK)
+ 
+ 
+class PagarCuotaEfectivoView(APIView):
+    """
+    POST /api/pagos/cuota/efectivo/
+    Solo Administrador. Registra el pago de cuota en efectivo de forma manual.
+    Body: { "cliente_id": <id> }
+    """
+    permission_classes = [EsAdministrador]
+ 
+    def post(self, request):
+        cliente_id = request.data.get('cliente_id')
+ 
+        if not cliente_id:
+            return Response({'error': 'Falta cliente_id.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        from apps.usuarios.models import Cliente
+        try:
+            cliente = Cliente.objects.get(pk=cliente_id)
+        except Cliente.DoesNotExist:
+            return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+ 
+        periodo = primer_dia_mes_actual()
+ 
+        ya_pago = PagoCuota.objects.filter(
+            cliente=cliente, periodo=periodo, estado='aprobado'
+        ).exists()
+        if ya_pago:
+            return Response({'error': 'Este cliente ya abonó la cuota de este mes.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        MONTO_CUOTA = Decimal('25000.00')
+ 
+        admin = getattr(request.user, 'administrador', None)
+ 
+        pago_cuota = PagoCuota.objects.create(
+            cliente=cliente,
+            periodo=periodo,
+            monto=MONTO_CUOTA,
+            metodo_pago='efectivo',
+            estado='aprobado',
+            registrado_por=admin,
+        )
+ 
+        cliente.es_abonado = True
+        cliente.fecha_venc_cuota = periodo + relativedelta(months=1)
+        cliente.save()
+ 
+        return Response(
+            {
+                'mensaje': f'Cuota de {cliente.usuario.nombre} {cliente.usuario.apellido} registrada como pagada en efectivo.',
+                'pago': PagoCuotaSerializer(pago_cuota).data,
+            },
+            status=status.HTTP_201_CREATED
+        )    
