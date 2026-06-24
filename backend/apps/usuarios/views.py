@@ -346,7 +346,13 @@ class PerfilClienteView(APIView):
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
             return Response({'error': 'No es cliente'}, status=403)
-        return Response({'id': cliente.id, 'email': request.user.email})
+        return Response({
+            'id': cliente.id,
+            'email': request.user.email,
+            'nombre': request.user.nombre,
+            'es_abonado': cliente.es_abonado,
+            'fecha_venc_cuota': str(cliente.fecha_venc_cuota) if cliente.fecha_venc_cuota else None,
+        })
 
     
 #Recuperar contraseña

@@ -71,6 +71,14 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
   const [buscarLoading, setBuscarLoading]       = useState(false)
     form.tipo && form.fecha && form.hora_inicio && form.sala && form.kinesiologo
 
+
+  const formularioCompleto =
+  form.tipo &&
+  form.fecha &&
+  form.hora_inicio &&
+  form.sala &&
+  form.kinesiologo
+    
   const cargar = async () => {
     setLoading(true)
     setError('')

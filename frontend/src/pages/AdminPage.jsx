@@ -4,13 +4,13 @@ import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
 import Clientes from '../components/Clientes'
 import { obtenerQuejas } from '../services/quejaService'
-
+import ModalPagoEfectivo from '../components/PagoEfectivo'
 const API = 'http://localhost:8000/api'
 
 export default function AdminPage() {
   const { logout, access } = useAuth()
   const navigate          = useNavigate()
-
+  const [modalEfectivo, setModalEfectivo] = useState(false)
   const [confirmarLogout, setConfirmarLogout] = useState(false)
   const [verClientes, setVerClientes]         = useState(false)
   const [precio, setPrecio]                   = useState(15000)
@@ -187,6 +187,9 @@ export default function AdminPage() {
 
       <main style={s.main}>
         <div style={s.btnRow}>
+          <button style={s.btnPagoEfectivo} 
+          onClick={() => setModalEfectivo(true)}>Registrar Pago en Efectivo
+          </button>
           <button
             style={{ ...s.btnToggle, ...(verClientes ? s.btnToggleActive : {}) }}
             onClick={() => setVerClientes(v => !v)}
@@ -480,6 +483,12 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ── Modal pago en efectivo ── */}
+      {modalEfectivo && (
+        <ModalPagoEfectivo access={access} onCerrar={() => setModalEfectivo(false)} />
+      )}
+
     </div>
   )
 }
@@ -495,7 +504,16 @@ const s = {
 
   main:     { padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' },
   btnRow:   { display: 'flex', gap: 10 },
-
+  btnPagoEfectivo: {
+    padding: '9px 20px',
+    borderRadius: 8,
+    border: '1px solid #2563eb',
+    background: '#10182b',
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
   btnToggle:       { padding: '9px 20px', borderRadius: 8, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnToggleActive: { background: '#2d6a2d', color: '#fff' },
 

@@ -437,67 +437,80 @@ def primer_dia_mes_actual():
     return date(hoy.year, hoy.month, 1)
  
  
+
+
 class IniciarPagoCuotaView(APIView):
-    """
-    POST /api/pagos/cuota/iniciar/
-    Inicia el pago de la cuota mensual vía Mercado Pago para el cliente autenticado.
-    """
     permission_classes = [IsAuthenticated]
- 
+
     def post(self, request):
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
             return Response({'error': 'Solo los clientes pueden pagar la cuota.'}, status=status.HTTP_403_FORBIDDEN)
- 
+
+        hoy = date.today()
+
+       # if not (1 <= hoy.day <= 10):
+        #    return Response(
+         #       {'error': 'Solo se puede pagar la cuota entre los días 1 y 10 del mes corriente.'},
+          #      status=status.HTTP_400_BAD_REQUEST
+           # )
+
         periodo = primer_dia_mes_actual()
- 
-        # Si ya pagó este mes, no permitir doble pago
+
         ya_pago = PagoCuota.objects.filter(
             cliente=cliente, periodo=periodo, estado='aprobado'
         ).exists()
         if ya_pago:
             return Response({'error': 'Ya abonaste la cuota de este mes.'}, status=status.HTTP_400_BAD_REQUEST)
- 
-        MONTO_CUOTA = Decimal('25000.00')  # ajustar según precio real de la cuota
- 
+
+        metodo_pago = request.data.get('metodo_pago', 'mercadopago')
+        MONTO_CUOTA = Decimal('25000.00')
+
         pago_cuota, created = PagoCuota.objects.get_or_create(
             cliente=cliente,
             periodo=periodo,
             estado='pendiente',
             defaults={
                 'monto': MONTO_CUOTA,
-                'metodo_pago': 'mercadopago',
+                'metodo_pago': metodo_pago,
             }
         )
- 
-        # Reutilizamos el servicio de MP, igual que con PagoReserva.
-        # generar_preferencia_mp espera un objeto con .pk, .monto_abonado, .cliente, etc.
-        # Le pasamos un wrapper liviano para no romper la firma del servicio.
-        clase_wrapper = type('CuotaWrapper', (), {
-            'pk': pago_cuota.pk,
-            'id': pago_cuota.pk,
-            'monto_abonado': pago_cuota.monto,
-            'cliente': cliente,
-            'get_tipo_pago_display': lambda self=None: 'Cuota Mensual',
-        })()
- 
-        try:
-            init_point = generar_preferencia_mp(clase_wrapper)
-        except Exception as e:
-            return Response(
-                {'error': f'Error al conectar con Mercado Pago: {str(e)}'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
- 
+        if not created:
+            pago_cuota.metodo_pago = metodo_pago
+            pago_cuota.save()
+
+        mp_init_point = None
+        if metodo_pago == 'mercadopago':
+            # mp_service.generar_preferencia_mp espera pago_obj.reserva.clase.tipo
+            # para armar el título del item, así que simulamos esa cadena de objetos.
+            clase_fake = type('ClaseFake', (), {'tipo': 'Cuota Mensual'})()
+            reserva_fake = type('ReservaFake', (), {'clase': clase_fake})()
+
+            clase_wrapper = type('CuotaWrapper', (), {
+                'id': pago_cuota.pk,
+                'monto_abonado': pago_cuota.monto,
+                'cliente': cliente,
+                'reserva': reserva_fake,
+            })()
+
+            try:
+                mp_init_point = generar_preferencia_mp(clase_wrapper)
+            except Exception as e:
+                return Response(
+                    {'error': f'Ocurrió un error al momento de realizar el pago: {str(e)}'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
         return Response(
             {
                 'pago_cuota_id': pago_cuota.pk,
                 'monto':         str(pago_cuota.monto),
                 'periodo':       str(pago_cuota.periodo),
-                'mp_init_point': init_point,
+                'mp_init_point': mp_init_point,
             },
             status=status.HTTP_201_CREATED
         )
+        
  
  
 class ConfirmarPagoCuotaView(APIView):
@@ -639,4 +652,122 @@ class PagarCuotaEfectivoView(APIView):
                 'pago': PagoCuotaSerializer(pago_cuota).data,
             },
             status=status.HTTP_201_CREATED
+        )    
+# ──────────────────────────────────────────────────────────────────────────
+# AGREGAR a backend/apps/pagos/views.py
+# Requiere import ya existente de: PagoReserva, Reserva, Response, status, etc.
+# ──────────────────────────────────────────────────────────────────────────
+
+class ListaSaldosPendientesView(APIView):
+    """
+    GET /api/pagos/saldos-pendientes/<dni>/
+    Devuelve las reservas de un cliente que tienen saldo pendiente
+    (pagaron seña pero no el total), ordenadas por fecha de clase
+    (la más próxima primero). Solo Administrador.
+    """
+    permission_classes = [EsAdministrador]
+
+    def get(self, request, dni):
+        from apps.usuarios.models import Cliente
+
+        try:
+            cliente = Cliente.objects.select_related('usuario').get(usuario__dni=dni)
+        except Cliente.DoesNotExist:
+            return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pagos_con_saldo = PagoReserva.objects.filter(
+            cliente=cliente,
+            estado='aprobado',
+            tipo_pago='sena',  # solo quienes pagaron seña deben el resto
+        ).select_related('reserva__clase').order_by('reserva__clase__fecha_clase', 'reserva__clase__hora_inicio')
+
+        data = []
+        for pago in pagos_con_saldo:
+            if pago.saldo_pendiente <= 0:
+                continue
+            clase = pago.reserva.clase
+            data.append({
+                'pago_id':         pago.pk,
+                'reserva_id':      pago.reserva_id,
+                'clase_tipo':      clase.tipo,
+                'clase_fecha':     str(clase.fecha_clase),
+                'clase_hora':      str(clase.hora_inicio),
+                'saldo_pendiente': str(pago.saldo_pendiente),
+            })
+
+        if not data:
+            return Response({'mensaje': 'Este cliente no tiene saldos pendientes.'}, status=status.HTTP_200_OK)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class PagarRestoEfectivoView(APIView):
+    """
+    POST /api/pagos/registrar-efectivo/
+    HU: Registrar Pago en efectivo (Administrador)
+
+    Body: { "pago_id": <id de PagoReserva> }
+
+    Regla: solo se puede saldar la clase con fecha más próxima entre
+    todas las que el cliente tiene pendientes. Si elige otra, se rechaza.
+    """
+    permission_classes = [EsAdministrador]
+
+    def post(self, request):
+        pago_id = request.data.get('pago_id')
+
+        if not pago_id:
+            return Response({'error': 'Falta pago_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pago = PagoReserva.objects.select_related('reserva__clase', 'cliente__usuario').get(pk=pago_id)
+        except PagoReserva.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if pago.saldo_pendiente <= 0:
+            return Response({'error': 'Esta clase no tiene saldo pendiente.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Escenario 3: debe ser la clase con fecha más próxima ─────────
+        siguiente_mas_proxima = PagoReserva.objects.filter(
+            cliente=pago.cliente,
+            estado='aprobado',
+            tipo_pago='sena',
+        ).select_related('reserva__clase').order_by(
+            'reserva__clase__fecha_clase', 'reserva__clase__hora_inicio'
+        ).first()
+
+        # Filtramos en Python las que realmente tienen saldo pendiente
+        pendientes = [
+            p for p in PagoReserva.objects.filter(
+                cliente=pago.cliente, estado='aprobado', tipo_pago='sena'
+            ).select_related('reserva__clase').order_by(
+                'reserva__clase__fecha_clase', 'reserva__clase__hora_inicio'
+            )
+            if p.saldo_pendiente > 0
+        ]
+
+        if pendientes and pendientes[0].pk != pago.pk:
+            clase_proxima = pendientes[0].reserva.clase
+            return Response(
+                {
+                    'error': (
+                        f'Hay una clase con fecha más próxima a pagar '
+                        f'({clase_proxima.fecha_clase.strftime("%d/%m/%Y")} '
+                        f'{clase_proxima.hora_inicio.strftime("%H:%M")} hs). '
+                        f'Esa debe saldarse primero.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ── Escenario 1: pago exitoso ─────────────────────────────────────
+        pago.monto_abonado = pago.monto_total_clase
+        pago.save()
+
+        return Response(
+            {
+                'mensaje': f'Se registró el pago en efectivo del resto de la clase de {pago.cliente.usuario.nombre} {pago.cliente.usuario.apellido}.',
+                'pago': PagoReservaSerializer(pago).data,
+            },
+            status=status.HTTP_200_OK
         )    

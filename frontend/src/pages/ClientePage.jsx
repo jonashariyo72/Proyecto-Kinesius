@@ -5,7 +5,7 @@ import api from '../services/clasesService'
 import { Link } from "react-router-dom";
 import PagoReservaPage from './PagoReservaPage'
 import { crearQueja } from '../services/quejaService'
-
+import PagoCuotaPage from './PagoCuotaPage'
 const DIAS = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
   jueves: 'Jueves', viernes: 'Viernes',
@@ -191,7 +191,8 @@ export default function ClientePage() {
   const [confirmarLogout, setConfirmarLogout] = useState(false)
   const [textoQueja, setTextoQueja] = useState('')
   const [mensajeQueja, setMensajeQueja] = useState('')
-
+  const [pagandoCuota, setPagandoCuota] = useState(false)
+  const [esAbonado, setEsAbonado] = useState(false)
   // Filtros
   const [filtroTipo, setFiltroTipo]               = useState('')
   const [filtroDia, setFiltroDia]                 = useState('')
@@ -257,6 +258,23 @@ export default function ClientePage() {
     if (seccion === 'clases') cargarClases()
     if (seccion === 'turnos') cargarReservas()
   }, [seccion, pacienteId, filtroDia, filtroTipo, filtroKinesiologo])
+
+
+  useEffect(() => {
+  api.get('/usuarios/perfil/')
+    .then(res => {
+      setPacienteId(res.data.id)
+      setEsAbonado(res.data.es_abonado)
+      setNombreUsuario(
+        res.data.nombre ||
+        res.data.usuario?.nombre ||
+        res.data.user?.nombre ||
+        res.data.cliente?.usuario?.nombre ||
+        res.data.email?.split('@')[0] || ''
+      )
+    })
+    .catch(() => {})
+  }, [])
 
   const handleReservar = async (clase) => {
     try {
@@ -372,7 +390,17 @@ export default function ClientePage() {
       />
     )
   }
-
+  if (pagandoCuota) {
+  return (
+    <PagoCuotaPage
+      onPagoExitoso={() => {
+        setPagandoCuota(false)
+        mostrarToast('✅ Cuota pagada correctamente.')
+      }}
+      onCancelar={() => setPagandoCuota(false)}
+    />
+  )
+}
   return (
     <div style={s.page}>
       <header style={s.header}>
@@ -382,6 +410,9 @@ export default function ClientePage() {
           <span style={s.badgeRol}>
             {nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hola'}
           </span>
+          {esAbonado && (
+           <span style={s.badgeAbonado}>Abonado</span>
+           )}
         </div>
         <nav style={s.nav}>
           <button
@@ -405,7 +436,12 @@ export default function ClientePage() {
           >
             Quejas
           </button>
-
+          <button
+                style={{ ...s.navBtn, ...(seccion === 'cuota' ? s.navActivo : {}) }}
+                onClick={() => setPagandoCuota(true)}
+              >
+                Pagar cuota
+          </button>  
 
           <Link to="/cambiar-password" style={s.navBtn}>
             <IconLock /> Cambiar contraseña
@@ -758,4 +794,9 @@ const s = {
   precioPill: { fontSize: 13, fontWeight: 800, color: '#9a6b00', background: '#fff7d6', border: '1px solid #f0d060', padding: '5px 9px', borderRadius: 999 },
   btnReservarCompacto: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   fechaClase: { margin: 0, fontSize: 13, fontWeight: 800, color: '#1f3d1f' },
+  badgeAbonado: {
+  marginLeft: 8, fontSize: 11, fontWeight: 700,
+  background: '#e8f5e9', color: '#2d6a2d',
+  padding: '3px 10px', borderRadius: 20, border: '1px solid #c3dfc3',
+},
 }
