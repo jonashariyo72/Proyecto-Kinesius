@@ -63,6 +63,9 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
   const [minCapacidad, setMinCapacidad]           = useState(1)
   const [modalEliminar, setModalEliminar]         = useState(null)
   const [toast, setToast]                         = useState('')
+  const [modalQR, setModalQR] = useState(null)
+  const [cargandoQR, setCargandoQR] = useState(false)
+  const [errorQR, setErrorQR] = useState('')
 
   const [modalBuscarClase, setModalBuscarClase] = useState(null) // clase seleccionada
   const [buscarQuery, setBuscarQuery]           = useState('')
@@ -216,6 +219,21 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
     }
   }
 
+  const generarQR = async clase => {
+  setCargandoQR(true)
+  setErrorQR('')
+  setModalQR({ clase, data: null })
+
+  try {
+    const res = await api.get(`/clases/generar-qr/${clase.id}/`)
+    setModalQR({ clase, data: res.data })
+  } catch (err) {
+    setErrorQR(err.response?.data?.error || 'No se pudo generar el QR.')
+  } finally {
+    setCargandoQR(false)
+  }
+}
+
   return (
     <div>
       {toast && <div style={s.toast}>{toast}</div>}
@@ -299,17 +317,26 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
               </div>
             )}
 
-            {/* Botones para Kinesiólogo */}
-            {c.activa && modoKinesiologo && (
-              <div style={s.acciones}>
-                <button style={s.btnVerInscriptos} onClick={() => setModalInscriptos(c)}>
-                  Ver inscriptos
-                </button>
-                <button style={s.btnBuscarCliente} onClick={() => abrirBuscarClase(c)}>
-                  Buscar cliente
-                </button>
-              </div>
-            )}
+          {/* Botones para Kinesiólogo */}
+          {c.activa && modoKinesiologo && (
+            <div style={s.acciones}>
+              <button style={s.btnVerInscriptos} onClick={() => setModalInscriptos(c)}>
+                Ver inscriptos
+              </button>
+              <button style={s.btnBuscarCliente} onClick={() => abrirBuscarClase(c)}>
+                Buscar cliente
+              </button>
+              <button
+                style={s.btnLista}
+                onClick={() => {
+                  console.log('Click Generar QR', c)
+                  generarQR(c)
+                }}
+              >
+                Generar QR
+              </button>
+            </div>
+          )}
           </div>
         ))}
       </div>
@@ -420,6 +447,41 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <button style={s.btnCancelar} onClick={() => setModalEliminar(null)}>Cancelar</button>
               <button style={s.btnEliminarConfirm} onClick={desactivar}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalQR && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <h2 style={s.modalTitulo}>QR de asistencia</h2>
+
+            <p style={{ fontSize: 14, color: '#555', marginTop: 0 }}>
+              {modalQR.clase.fecha_clase} - {modalQR.clase.hora_inicio?.slice(0, 5)} hs
+            </p>
+
+            {cargandoQR && <p style={s.estado}>Generando QR...</p>}
+            {errorQR && <p style={s.errorTxt}>{errorQR}</p>}
+
+            {modalQR.data?.qr_image && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <img
+                  src={modalQR.data.qr_image}
+                  alt="QR de asistencia"
+                  style={{ width: 260, height: 260 }}
+                />
+
+                <p style={{ fontSize: 12, color: '#777', textAlign: 'center', wordBreak: 'break-all' }}>
+                  {modalQR.data.url_asistencia}
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button style={s.btnCancelar} onClick={() => setModalQR(null)}>
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

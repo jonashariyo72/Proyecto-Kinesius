@@ -5,6 +5,7 @@ import RegistroPage from './pages/RegistroPage'
 import AdminPage    from './pages/AdminPage'
 import KinesciusHome from './pages/KinesciusHome'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import AsistenciaQRPage from './pages/AsistenciaQRPage'
 import ClientePage from './pages/ClientePage'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import RecuperarPasswordPage from './pages/RecuperarPasswordPage'
@@ -87,6 +88,8 @@ export default function App() {
           <Route path="/lista-espera/responder/:id" element={<ResponderListaEsperaPage />}/>
 
           <Route path="/lista-espera/pago/:id" element={<PagoListaEsperaPage />}/>
+
+          <Route path="/asistencia/qr/:token" element={<AsistenciaQRPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

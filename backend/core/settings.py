@@ -8,7 +8,13 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '192.168.1.35',
+    '192.168.100.17',
+    'choking-nursing-reveler.ngrok-free.dev',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -38,6 +44,21 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'ngrok-skip-browser-warning',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -124,3 +145,7 @@ EMAIL_HOST_USER = '3f5cb17b3adfcb'
 EMAIL_HOST_PASSWORD = 'd7e297a730cb2b'
 EMAIL_PORT = '2525'
 DEFAULT_FROM_EMAIL = 'kinescius@kinescius.com'
+
+# para forzar https
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
