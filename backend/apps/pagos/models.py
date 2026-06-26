@@ -117,3 +117,20 @@ class PagoCuota(models.Model):
     
         def __str__(self):
             return f'Cuota #{self.pk} | {self.cliente} | {self.periodo.strftime("%m/%Y")} | {self.get_estado_display()}'
+
+
+class ConfiguracionCuota(models.Model):
+        dia_inicio_pago = models.PositiveSmallIntegerField(default=25)
+        dia_fin_pago = models.PositiveSmallIntegerField(default=18)
+        actualizado_en = models.DateTimeField(auto_now=True)
+
+        class Meta:
+            verbose_name = 'Configuracion de Cuota'
+
+        def __str__(self):
+            return f'Cuota: del dia {self.dia_inicio_pago} al {self.dia_fin_pago}'
+
+        @classmethod
+        def actual(cls):
+            config, _ = cls.objects.get_or_create(pk=1)
+            return config

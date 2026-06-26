@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
@@ -19,6 +19,11 @@ export default function AdminPage() {
   const [quejas, setQuejas] = useState([])
   const [loadingQuejas, setLoadingQuejas] = useState(false)
   const [vista, setVista] = useState('principal')
+  const [configCuota, setConfigCuota] = useState({ dia_inicio_pago: 25, dia_fin_pago: 18 })
+  const [editandoCuota, setEditandoCuota] = useState(false)
+  const [cuotaForm, setCuotaForm] = useState({ dia_inicio_pago: 25, dia_fin_pago: 18 })
+  const [cuotaMsg, setCuotaMsg] = useState('')
+  const [cuotaError, setCuotaError] = useState('')
 
   const [refreshKines, setRefreshKines] = useState(0)
 
@@ -47,11 +52,71 @@ export default function AdminPage() {
     navigate('/login')
   }
 
+  useEffect(() => {
+    async function cargarConfiguracionCuota() {
+      if (!access) return
+
+      try {
+        const res = await fetch(`${API}/pagos/cuota/configuracion/`, {
+          headers: { 'Authorization': `Bearer ${access}` },
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setConfigCuota(data)
+          setCuotaForm(data)
+        }
+      } catch {
+        setCuotaError('No se pudo cargar la configuracion de cuota.')
+      }
+    }
+
+    cargarConfiguracionCuota()
+  }, [access])
+
   const confirmarPrecio = () => {
     const nuevo = parseInt(inputPrecio)
     if (!isNaN(nuevo) && nuevo > 0) {
       setPrecio(nuevo)
       setEditandoPrecio(false)
+    }
+  }
+
+  const confirmarConfiguracionCuota = async () => {
+    setCuotaMsg('')
+    setCuotaError('')
+
+    try {
+      const res = await fetch(`${API}/pagos/cuota/configuracion/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${access}`,
+        },
+        body: JSON.stringify({
+          dia_inicio_pago: cuotaForm.dia_inicio_pago,
+          dia_fin_pago: cuotaForm.dia_fin_pago,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setCuotaError(data.error ?? 'No se pudo actualizar la configuracion.')
+        return
+      }
+
+      setConfigCuota({
+        dia_inicio_pago: data.dia_inicio_pago,
+        dia_fin_pago: data.dia_fin_pago,
+      })
+      setCuotaForm({
+        dia_inicio_pago: data.dia_inicio_pago,
+        dia_fin_pago: data.dia_fin_pago,
+      })
+      setEditandoCuota(false)
+      setCuotaMsg(data.mensaje)
+    } catch {
+      setCuotaError('No se pudo conectar con el servidor.')
     }
   }
 
@@ -255,6 +320,66 @@ export default function AdminPage() {
                   Cancelar
                 </button>
                 <button style={s.btnConfirmarVerde} onClick={confirmarPrecio}>
+                  Confirmar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={s.panelPrecio}>
+          <div style={s.panelPrecioLeft}>
+            <span style={s.panelPrecioLabel}>Periodo de pago de cuota</span>
+            {!editandoCuota ? (
+              <span style={s.panelPrecioValor}>
+                Dia {configCuota.dia_inicio_pago} al {configCuota.dia_fin_pago}
+              </span>
+            ) : (
+              <div style={s.cuotaInputs}>
+                <input
+                  style={s.panelPrecioInput}
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={cuotaForm.dia_inicio_pago}
+                  onChange={e => setCuotaForm(f => ({ ...f, dia_inicio_pago: e.target.value }))}
+                />
+                <input
+                  style={s.panelPrecioInput}
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={cuotaForm.dia_fin_pago}
+                  onChange={e => setCuotaForm(f => ({ ...f, dia_fin_pago: e.target.value }))}
+                />
+              </div>
+            )}
+            <span style={s.panelAyuda}>
+              
+            </span>
+            {cuotaMsg && <span style={s.msgInlineOk}>{cuotaMsg}</span>}
+            {cuotaError && <span style={s.msgInlineError}>{cuotaError}</span>}
+          </div>
+
+          <div style={s.panelPrecioRight}>
+            {!editandoCuota ? (
+              <button
+                style={s.btnModificar}
+                onClick={() => {
+                  setCuotaForm(configCuota)
+                  setCuotaMsg('')
+                  setCuotaError('')
+                  setEditandoCuota(true)
+                }}
+              >
+                Modificar fechas
+              </button>
+            ) : (
+              <>
+                <button style={s.btnCancelarPrecio} onClick={() => setEditandoCuota(false)}>
+                  Cancelar
+                </button>
+                <button style={s.btnConfirmarVerde} onClick={confirmarConfiguracionCuota}>
                   Confirmar
                 </button>
               </>
@@ -538,6 +663,10 @@ const s = {
   panelPrecioValor: { fontSize: 22, fontWeight: 700, color: '#c8a000' },
   panelPrecioInput: { fontSize: 20, fontWeight: 700, color: '#c8a000', border: '1px solid #ddd', borderRadius: 8, padding: '4px 10px', width: 140, outline: 'none' },
   panelPrecioRight: { display: 'flex', gap: 8 },
+  panelAyuda: { fontSize: 12, color: '#777' },
+  cuotaInputs: { display: 'flex', gap: 8 },
+  msgInlineOk: { fontSize: 12, color: '#2d6a2d', fontWeight: 600 },
+  msgInlineError: { fontSize: 12, color: '#c0392b', fontWeight: 600 },
   btnModificar:     { padding: '8px 16px', borderRadius: 8, border: '1px solid #c8a000', background: 'transparent', color: '#c8a000', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnCancelarPrecio:{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: 'transparent', fontSize: 13, cursor: 'pointer', color: '#555' },
 

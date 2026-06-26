@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from dateutil.relativedelta import relativedelta
 from .models import PagoCuota
+from .models import ConfiguracionCuota
 from .serializers import PagoCuotaSerializer
 from datetime import date
 from .models import PagoReserva
@@ -12,6 +13,7 @@ from .serializers import ConfirmarPagoSerializer, PagoReservaSerializer
 from apps.usuarios.permissions import EsAdministrador
 from .mp_service import generar_preferencia_mp, obtener_pago_mp, buscar_pago_por_external_reference
 from apps.reservas.models import Reserva
+from .pricing import calcular_monto_cuota, calcular_monto_total_reserva
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -82,7 +84,7 @@ class IniciarPagoView(APIView):
                 saldo_a_favor__gt=0
             )
             saldo_disponible = sum(r.saldo_a_favor for r in reservas_con_saldo) or Decimal('0')
-            monto_total = reserva.clase.precio
+            monto_total = calcular_monto_total_reserva(reserva)
 
             if saldo_disponible < monto_total:
                 return Response(
@@ -139,7 +141,7 @@ class IniciarPagoView(APIView):
             except Reserva.DoesNotExist:
                 return Response({'error': 'Reserva no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-            monto_total   = reserva.clase.precio
+            monto_total   = calcular_monto_total_reserva(reserva)
             monto_abonado = calcular_monto_abonado(tipo_pago, monto_total)
 
             # Reutilizar pago existente solo si sigue pendiente
@@ -160,6 +162,13 @@ class IniciarPagoView(APIView):
                     {'error': 'Esta reserva ya tiene un pago aprobado.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            if not created:
+                pago_obj.tipo_pago = tipo_pago
+                pago_obj.metodo_pago = metodo_pago
+                pago_obj.monto_total_clase = monto_total
+                pago_obj.monto_abonado = monto_abonado
+                pago_obj.save()
 
             respuesta = {
                 'pago_id':         pago_obj.pk,
@@ -350,7 +359,7 @@ class ConfirmarPagoSaldoView(APIView):
         if not cliente or reserva.paciente != cliente:
             return Response({'error': 'No tenés permiso para pagar esta reserva.'}, status=status.HTTP_403_FORBIDDEN)
 
-        monto_total   = reserva.clase.precio
+        monto_total   = calcular_monto_total_reserva(reserva)
         monto_a_pagar = calcular_monto_abonado(tipo_pago, monto_total)
 
         saldo_disponible = cliente.saldo_a_favor
@@ -435,6 +444,27 @@ class VerificarPagoMPView(APIView):
 def primer_dia_mes_actual():
     hoy = date.today()
     return date(hoy.year, hoy.month, 1)
+
+
+def periodo_cuota_para_fecha(hoy=None):
+    hoy = hoy or date.today()
+    config = ConfiguracionCuota.actual()
+
+    if not (1 <= config.dia_inicio_pago <= 31 and 1 <= config.dia_fin_pago <= 31):
+        return None
+
+    if config.dia_inicio_pago > config.dia_fin_pago:
+        if hoy.day >= config.dia_inicio_pago:
+            periodo = hoy + relativedelta(months=1)
+            return date(periodo.year, periodo.month, 1)
+        if hoy.day <= config.dia_fin_pago:
+            return date(hoy.year, hoy.month, 1)
+        return None
+
+    if config.dia_inicio_pago <= hoy.day <= config.dia_fin_pago:
+        return date(hoy.year, hoy.month, 1)
+
+    return None
  
  
 
@@ -447,15 +477,18 @@ class IniciarPagoCuotaView(APIView):
         if not cliente:
             return Response({'error': 'Solo los clientes pueden pagar la cuota.'}, status=status.HTTP_403_FORBIDDEN)
 
-        hoy = date.today()
-
-       # if not (1 <= hoy.day <= 10):
-        #    return Response(
-         #       {'error': 'Solo se puede pagar la cuota entre los días 1 y 10 del mes corriente.'},
-          #      status=status.HTTP_400_BAD_REQUEST
-           # )
-
-        periodo = primer_dia_mes_actual()
+        config = ConfiguracionCuota.actual()
+        periodo = periodo_cuota_para_fecha()
+        if not periodo:
+            return Response(
+                {
+                    'error': (
+                        f'Solo se puede pagar la cuota entre los dias '
+                        f'{config.dia_inicio_pago} y {config.dia_fin_pago}.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         ya_pago = PagoCuota.objects.filter(
             cliente=cliente, periodo=periodo, estado='aprobado'
@@ -464,7 +497,7 @@ class IniciarPagoCuotaView(APIView):
             return Response({'error': 'Ya abonaste la cuota de este mes.'}, status=status.HTTP_400_BAD_REQUEST)
 
         metodo_pago = request.data.get('metodo_pago', 'mercadopago')
-        MONTO_CUOTA = Decimal('25000.00')
+        MONTO_CUOTA = calcular_monto_cuota()
 
         pago_cuota, created = PagoCuota.objects.get_or_create(
             cliente=cliente,
@@ -621,7 +654,18 @@ class PagarCuotaEfectivoView(APIView):
         except Cliente.DoesNotExist:
             return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
  
-        periodo = primer_dia_mes_actual()
+        config = ConfiguracionCuota.actual()
+        periodo = periodo_cuota_para_fecha()
+        if not periodo:
+            return Response(
+                {
+                    'error': (
+                        f'Solo se puede pagar la cuota entre los dias '
+                        f'{config.dia_inicio_pago} y {config.dia_fin_pago}.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
  
         ya_pago = PagoCuota.objects.filter(
             cliente=cliente, periodo=periodo, estado='aprobado'
@@ -629,7 +673,7 @@ class PagarCuotaEfectivoView(APIView):
         if ya_pago:
             return Response({'error': 'Este cliente ya abonó la cuota de este mes.'}, status=status.HTTP_400_BAD_REQUEST)
  
-        MONTO_CUOTA = Decimal('25000.00')
+        MONTO_CUOTA = calcular_monto_cuota()
  
         admin = getattr(request.user, 'administrador', None)
  
@@ -653,6 +697,39 @@ class PagarCuotaEfectivoView(APIView):
             },
             status=status.HTTP_201_CREATED
         )    
+
+
+class ConfiguracionCuotaView(APIView):
+    permission_classes = [EsAdministrador]
+
+    def get(self, request):
+        config = ConfiguracionCuota.actual()
+        return Response({
+            'dia_inicio_pago': config.dia_inicio_pago,
+            'dia_fin_pago': config.dia_fin_pago,
+        })
+
+    def put(self, request):
+        config = ConfiguracionCuota.actual()
+
+        try:
+            dia_inicio = int(request.data.get('dia_inicio_pago'))
+            dia_fin = int(request.data.get('dia_fin_pago'))
+        except (TypeError, ValueError):
+            return Response({'error': 'Los dias deben ser numeros.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not (1 <= dia_inicio <= 31 and 1 <= dia_fin <= 31):
+            return Response({'error': 'Los dias deben estar entre 1 y 31.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        config.dia_inicio_pago = dia_inicio
+        config.dia_fin_pago = dia_fin
+        config.save()
+
+        return Response({
+            'mensaje': 'Configuracion de cuota actualizada correctamente.',
+            'dia_inicio_pago': config.dia_inicio_pago,
+            'dia_fin_pago': config.dia_fin_pago,
+        })
 # ──────────────────────────────────────────────────────────────────────────
 # AGREGAR a backend/apps/pagos/views.py
 # Requiere import ya existente de: PagoReserva, Reserva, Response, status, etc.

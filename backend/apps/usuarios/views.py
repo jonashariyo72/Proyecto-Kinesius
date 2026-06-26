@@ -21,6 +21,7 @@ from .serializers import (
     LoginSerializer,
     Verificacion2FASerializer,
 )
+from apps.pagos.pricing import cliente_tiene_abono_vigente
 
 
 
@@ -346,11 +347,12 @@ class PerfilClienteView(APIView):
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
             return Response({'error': 'No es cliente'}, status=403)
+        es_abonado_vigente = cliente_tiene_abono_vigente(cliente, timezone.localdate())
         return Response({
             'id': cliente.id,
             'email': request.user.email,
             'nombre': request.user.nombre,
-            'es_abonado': cliente.es_abonado,
+            'es_abonado': es_abonado_vigente,
             'fecha_venc_cuota': str(cliente.fecha_venc_cuota) if cliente.fecha_venc_cuota else None,
         })
 

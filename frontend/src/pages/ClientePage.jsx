@@ -282,9 +282,17 @@ export default function ClientePage() {
         paciente: pacienteId,
         clase: clase.id,
       })
+
+      if (resReserva.data.cubierta_por_abono) {
+        mostrarToast('✅ Reserva confirmada correctamente. Clase cubierta por tu abono.')
+        setSeccion('turnos')
+        cargarReservas()
+        return
+      }
+
       setPagoActivo({
         reservaId:       resReserva.data.id,
-        montoTotalClase: parseFloat(clase.precio),
+        montoTotalClase: parseFloat(resReserva.data.monto_total ?? clase.precio),
         clase,
       })
     } catch (err) {
@@ -382,7 +390,11 @@ export default function ClientePage() {
             paciente: pacienteId,
             clase: pagoActivo.clase.id,
           })
-          setPagoActivo(prev => ({ ...prev, reservaId: resReserva.data.id }))
+          setPagoActivo(prev => ({
+            ...prev,
+            reservaId: resReserva.data.id,
+            montoTotalClase: parseFloat(resReserva.data.monto_total ?? prev.montoTotalClase),
+          }))
           return resReserva.data.id
         }}
         onPagoExitoso={handlePagoExitoso}
@@ -395,6 +407,7 @@ export default function ClientePage() {
     <PagoCuotaPage
       onPagoExitoso={() => {
         setPagandoCuota(false)
+        setEsAbonado(true)
         mostrarToast('✅ Cuota pagada correctamente.')
       }}
       onCancelar={() => setPagandoCuota(false)}

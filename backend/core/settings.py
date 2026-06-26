@@ -16,6 +16,10 @@ ALLOWED_HOSTS = [
     'choking-nursing-reveler.ngrok-free.dev',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://choking-nursing-reveler.ngrok-free.dev',
+]
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -104,9 +108,6 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
-
-# CORS — permite que el HTML/JS consuma la API
-CORS_ALLOW_ALL_ORIGINS = True   # solo en desarrollo
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

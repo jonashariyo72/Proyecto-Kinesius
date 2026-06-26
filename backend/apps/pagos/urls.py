@@ -12,6 +12,7 @@ from .views import (
     ConfirmarPagoCuotaView,
     VerificarPagoCuotaMPView,
     PagarCuotaEfectivoView,
+    ConfiguracionCuotaView,
     ListaSaldosPendientesView,
     PagarRestoEfectivoView,
 )
@@ -31,6 +32,7 @@ urlpatterns = [
     path('cuota/confirmar/',    ConfirmarPagoCuotaView.as_view(),   name='confirmar-cuota'),
     path('cuota/verificar-mp/', VerificarPagoCuotaMPView.as_view(), name='verificar-cuota-mp'),
     path('cuota/efectivo/',     PagarCuotaEfectivoView.as_view(),   name='pagar-cuota-efectivo'),
+    path('cuota/configuracion/', ConfiguracionCuotaView.as_view(),  name='configuracion-cuota'),
 
     # ── Registrar Pago en Efectivo del resto de una clase (Administrador) ─
     path('saldos-pendientes/<str:dni>/', ListaSaldosPendientesView.as_view(), name='saldos-pendientes'),

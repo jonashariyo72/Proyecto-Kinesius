@@ -5,7 +5,7 @@ function formatARS(amount) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount)
 }
 
-const MONTO_CUOTA = 25000 // debe coincidir con el backend
+const MONTO_CUOTA = 48000 // 4 clases de 15000 con 20% de descuento
 
 export default function PagoCuotaPage({ onPagoExitoso, onCancelar }) {
   // inicio -> seleccionar-metodo -> esperando-mp -> resultado
