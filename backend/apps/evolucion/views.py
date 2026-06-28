@@ -68,95 +68,7 @@ class BuscarPacienteView(APIView):
             "sesiones": sesiones
         })
     
-class RegistrarFichaView(APIView):
 
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-
-        # Verificar que sea kinesiólogo
-        if not hasattr(request.user, "kinesiologo"):
-            return Response(
-                {
-                    "error": "Solo los kinesiólogos pueden registrar fichas."
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        reserva_id = request.data.get("reserva")
-        descripcion = request.data.get("descripcion")
-
-        if not reserva_id:
-            return Response(
-                {
-                    "error": "Debe seleccionar una sesión."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not descripcion:
-            return Response(
-                {
-                    "error": "La descripción es obligatoria."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            reserva = Reserva.objects.select_related(
-                "paciente",
-                "clase"
-            ).get(id=reserva_id)
-
-        except Reserva.DoesNotExist:
-            return Response(
-                {
-                    "error": "La sesión no existe."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Debe pertenecer al kinesiólogo logueado
-        if reserva.clase.kinesiologo != request.user.kinesiologo:
-            return Response(
-                {
-                    "error": "No tiene permisos para registrar esta ficha."
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Debe haber asistido
-        if not reserva.asistio:
-            return Response(
-                {
-                    "error": "El paciente no ha asistido a la sesión."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Evitar duplicados
-        if hasattr(reserva, "ficha_evolucion"):
-            return Response(
-                {
-                    "error": "La ficha ya fue registrada."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        FichaEvolucion.objects.create(
-            paciente=reserva.paciente,
-            kinesiologo=request.user.kinesiologo,
-            reserva=reserva,
-            descripcion=descripcion
-        )
-
-        return Response(
-            {
-                "mensaje": "Registro de ficha exitoso."
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
 class RegistrarFichaView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -202,8 +114,10 @@ class RegistrarFichaView(APIView):
             )
 
         FichaEvolucion.objects.create(
+            paciente=cliente,
+            kinesiologo=request.user.kinesiologo,
             reserva=reserva,
-            observaciones=observaciones
+            descripcion=observaciones
         )
 
         return Response(

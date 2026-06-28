@@ -1,21 +1,25 @@
-import axios from './axiosInstance'
+//import api from './clasesService'
+
+// export const buscarPaciente = (dni) => {
+
+//     return axios.get(
+//         "/evolucion/buscar-paciente/",
+//         {
+//             params: {
+//                 dni
+//             }
+//         }
+//     )
+
+// }
+import api from './clasesService'
 
 export const buscarPaciente = (dni) => {
-
-    return axios.post(
-        '/evolucion/buscar-paciente/',
-        {
-            dni
-        }
-    )
-
+    return api.get('/evolucion/buscar-paciente/', {
+        params: { dni }
+    })
 }
 
 export const registrarFicha = (datos) => {
-
-    return axios.post(
-        '/evolucion/registrar/',
-        datos
-    )
-
+    return api.post('/evolucion/registrar/', datos)
 }
