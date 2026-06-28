@@ -23,3 +23,19 @@ export const buscarPaciente = (dni) => {
 export const registrarFicha = (datos) => {
     return api.post('/evolucion/registrar/', datos)
 }
+
+export const obtenerMisFichas = () => {
+
+    return api.get(
+        "/evolucion/mis-fichas/"
+    )
+
+}
+
+export const obtenerFichasPaciente = (dni) => {
+
+    return api.get(
+        `/evolucion/fichas-paciente/?dni=${dni}`
+    )
+
+}

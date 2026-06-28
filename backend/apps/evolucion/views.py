@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import FichaEvolucion
 from .serializers import FichaEvolucionSerializer
+from .serializers import FichaVisualizacionSerializer
 from apps.usuarios.models import Cliente
 from apps.reservas.models import Reserva
 
@@ -124,3 +125,90 @@ class RegistrarFichaView(APIView):
             {"mensaje": "Registro de ficha exitoso"},
             status=status.HTTP_201_CREATED
         )
+    
+class MisFichasView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        if not hasattr(request.user, "cliente"):
+            return Response(
+                {
+                    "error": "Solo los clientes pueden acceder."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        fichas = FichaEvolucion.objects.filter(
+            paciente=request.user.cliente
+        ).order_by("-fecha_creacion")
+
+        if not fichas.exists():
+            return Response(
+                {
+                    "mensaje": "Paciente sin ficha de evolución"
+                }
+            )
+
+        serializer = FichaVisualizacionSerializer(
+            fichas,
+            many=True
+        )
+
+        return Response(serializer.data)
+    
+class FichasPacienteView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        if not hasattr(request.user, "kinesiologo"):
+            return Response(
+                {
+                    "error": "Solo los kinesiólogos pueden acceder."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        dni = request.GET.get("dni")
+
+        if not dni:
+            return Response(
+                {
+                    "error": "Debe ingresar un DNI."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            paciente = Cliente.objects.get(
+                usuario__dni=dni
+            )
+
+        except Cliente.DoesNotExist:
+            return Response(
+                {
+                    "error": "Paciente no registrado."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        fichas = FichaEvolucion.objects.filter(
+            paciente=paciente
+        ).order_by("-fecha_creacion")
+
+        if not fichas.exists():
+            return Response(
+                {
+                    "mensaje": "Paciente sin ficha de evolución"
+                }
+            )
+
+        serializer = FichaVisualizacionSerializer(
+            fichas,
+            many=True
+        )
+
+        return Response(serializer.data)

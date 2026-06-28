@@ -6,6 +6,8 @@ import { Link } from "react-router-dom";
 import PagoReservaPage from './PagoReservaPage'
 import { crearQueja } from '../services/quejaService'
 import PagoCuotaPage from './PagoCuotaPage'
+import HistorialEvolucion from "../components/HistorialEvolucion";
+
 const DIAS = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
   jueves: 'Jueves', viernes: 'Viernes',
@@ -449,6 +451,16 @@ export default function ClientePage() {
           >
             Quejas
           </button>
+
+          <button
+            style={{
+              ...s.navBtn,
+              ...(seccion === "historial" ? s.navActivo : {})
+            }}
+            onClick={() => setSeccion("historial")}
+          >
+              Ver evolución
+          </button>
           <button
                 style={{ ...s.navBtn, ...(seccion === 'cuota' ? s.navActivo : {}) }}
                 onClick={() => setPagandoCuota(true)}
@@ -664,6 +676,11 @@ export default function ClientePage() {
             </div>
           </>
         )}
+
+        {seccion === "historial" && (
+            <HistorialEvolucion />
+        )}
+
       </main>
 
       {modalCancelar && (

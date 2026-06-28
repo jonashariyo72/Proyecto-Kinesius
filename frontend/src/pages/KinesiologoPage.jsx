@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
 import api from '../services/clasesService'
 import FichaEvolucion from "../components/FichaEvolucion"
+import HistorialEvolucion from "../components/HistorialEvolucion";
 
 export default function KinesiologoPage() {
   const { logout, access } = useAuth()
@@ -62,6 +63,16 @@ export default function KinesiologoPage() {
         >
           Registrar evolución
         </button>
+
+        <button
+          style={{
+            ...s.btnMenu,
+            ...(vista === "historial" ? s.btnMenuActivo : {})
+          }}
+          onClick={() => setVista("historial")}
+        >
+          Ver evolución
+        </button>
       </div>
 
       <main style={s.main}>
@@ -75,6 +86,13 @@ export default function KinesiologoPage() {
         {perfil && vista === "evolucion" && (
           <FichaEvolucion />
         )}
+
+        {perfil && vista === "historial" && (
+            <HistorialEvolucion
+                modoKinesiologo={true}
+            />
+        )}
+
       </main>
 
       {confirmarLogout && (
