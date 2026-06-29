@@ -8,7 +8,17 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '192.168.1.35',
+    '192.168.100.17',
+    'choking-nursing-reveler.ngrok-free.dev',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://choking-nursing-reveler.ngrok-free.dev',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,6 +37,7 @@ INSTALLED_APPS = [
     'apps.pagos',
     'apps.notificaciones',
     'apps.quejas',
+    'apps.evolucion',
 ]
 
 MIDDLEWARE = [
@@ -38,6 +49,21 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'ngrok-skip-browser-warning',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -84,9 +110,6 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-# CORS — permite que el HTML/JS consuma la API
-CORS_ALLOW_ALL_ORIGINS = True   # solo en desarrollo
-
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -124,3 +147,7 @@ EMAIL_HOST_USER = '3f5cb17b3adfcb'
 EMAIL_HOST_PASSWORD = 'd7e297a730cb2b'
 EMAIL_PORT = '2525'
 DEFAULT_FROM_EMAIL = 'kinescius@kinescius.com'
+
+# para forzar https
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

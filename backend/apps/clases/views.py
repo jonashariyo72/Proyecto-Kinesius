@@ -230,8 +230,7 @@ class GenerarQRClaseView(APIView):
 
         # URL que va a abrir el celular al escanear
         # En desarrollo usar la IP local o ngrok
-        base_url = request.build_absolute_uri('/').rstrip('/')
-        url_asistencia = f"{base_url}/api/clases/asistencia/qr/{clase.qr_token}/"
+        url_asistencia = f"http://192.168.100.17:5173/asistencia/qr/{clase.qr_token}/"
 
         # Generar imagen QR
         qr = qrcode.QRCode(

@@ -54,7 +54,7 @@ class Clase(models.Model):
 
         # Validar misma sala, mismo día y horario
         conflicto_sala = Clase.objects.filter(
-            dia=self.dia,
+            fecha_clase=self.fecha_clase,
             hora_inicio=self.hora_inicio,
             sala=self.sala,
             activa=True
@@ -67,7 +67,7 @@ class Clase(models.Model):
 
         # Validar mismo kinesiólogo, mismo día y horario
         conflicto_kinesiologo = Clase.objects.filter(
-            dia=self.dia,
+            fecha_clase=self.fecha_clase,
             hora_inicio=self.hora_inicio,
             kinesiologo=self.kinesiologo,
             activa=True

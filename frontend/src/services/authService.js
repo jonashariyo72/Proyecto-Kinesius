@@ -1,13 +1,16 @@
 import axios from 'axios'
+import { BASE_URL, NGROK_HEADERS } from './config'
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/usuarios',
+  baseURL: `${BASE_URL}/usuarios`,
+  headers: NGROK_HEADERS,
 })
 
 // Agrega el token JWT a cada request automáticamente
 api.interceptors.request.use((config) => {
   const token = sessionStorage.getItem('access')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  config.headers['ngrok-skip-browser-warning'] = 'true'
   return config
 })
 

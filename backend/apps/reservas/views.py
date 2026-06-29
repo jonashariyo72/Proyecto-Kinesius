@@ -10,6 +10,7 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
+from apps.pagos.pricing import calcular_monto_total_reserva
 
 class ReservaViewSet(viewsets.ModelViewSet):
     queryset = Reserva.objects.all()
@@ -49,7 +50,22 @@ class ReservaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        return super().create(request, *args, **kwargs)
+        response = super().create(request, *args, **kwargs)
+
+        if response.status_code == status.HTTP_201_CREATED:
+            reserva = Reserva.objects.select_related('paciente', 'clase').get(pk=response.data['id'])
+            monto_total = calcular_monto_total_reserva(reserva)
+            response.data['monto_total'] = str(monto_total)
+
+            if monto_total == Decimal('0.00'):
+                reserva.estado = 'CONFIRMADA'
+                reserva.save()
+                response.data['estado'] = reserva.estado
+                response.data['cubierta_por_abono'] = True
+            else:
+                response.data['cubierta_por_abono'] = False
+
+        return response
 
     @action(detail=False, methods=['get'], url_path='mis-turnos/(?P<dni>[^/.]+)')
     def visualizar_grilla(self, request, dni=None):
@@ -647,10 +663,17 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
         ).first()
 
         if reserva_existente:
+            monto_total = calcular_monto_total_reserva(reserva_existente)
+            cubierta_por_abono = monto_total == Decimal('0.00')
+            if cubierta_por_abono and reserva_existente.estado != 'CONFIRMADA':
+                reserva_existente.estado = 'CONFIRMADA'
+                reserva_existente.save()
+
             return Response(
                 {
                     "reserva_id": reserva_existente.id,
-                    "monto_total": str(reserva_existente.clase.precio)
+                    "monto_total": str(monto_total),
+                    "cubierta_por_abono": cubierta_por_abono,
                 },
                 status=status.HTTP_200_OK
             )
@@ -661,10 +684,17 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
             estado='PENDIENTE'
         )
 
+        monto_total = calcular_monto_total_reserva(reserva)
+        cubierta_por_abono = monto_total == Decimal('0.00')
+        if cubierta_por_abono:
+            reserva.estado = 'CONFIRMADA'
+            reserva.save()
+
         return Response(
             {
                 "reserva_id": reserva.id,
-                "monto_total": str(reserva.clase.precio)
+                "monto_total": str(monto_total),
+                "cubierta_por_abono": cubierta_por_abono,
             },
             status=status.HTTP_201_CREATED
         )

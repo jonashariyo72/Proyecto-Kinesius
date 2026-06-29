@@ -481,6 +481,13 @@ async function handleElegirMetodo(metodo) {
       setStep('resultado')
       return
     }
+
+    if (!esValida) {
+      setResultado({ exito: false, mensaje: 'Transacción no realizada. La tarjeta ingresada no es válida.' })
+      setStep('resultado')
+       return
+    }
+    
     try {
       const { data } = await confirmarPago({ pagoId, estado: 'aprobado' })
       setResultado({ exito: true, mensaje: data.mensaje, pago: data.pago })

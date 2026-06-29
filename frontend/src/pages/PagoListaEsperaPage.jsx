@@ -409,6 +409,14 @@ export default function PagoListaEsperaPage() {
 
         setReservaActualId(reservaData.reserva_id)
         setMontoTotalClase(reservaData.monto_total)
+
+        if (reservaData.cubierta_por_abono) {
+          setResultado({
+            exito: true,
+            mensaje: 'Reserva confirmada correctamente. Clase cubierta por tu abono.',
+          })
+          setStep('resultado')
+        }
       } catch (err) {
         setError(err.response?.data?.error ?? 'No se pudo cargar el pago de la lista de espera.')
       } finally {

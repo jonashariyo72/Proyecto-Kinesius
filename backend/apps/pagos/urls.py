@@ -8,6 +8,13 @@ from .views import (
     SaldoFavorView,
     VerificarPagoMPView,
     ConfirmarPagoSaldoView,
+    IniciarPagoCuotaView,
+    ConfirmarPagoCuotaView,
+    VerificarPagoCuotaMPView,
+    PagarCuotaEfectivoView,
+    ConfiguracionCuotaView,
+    ListaSaldosPendientesView,
+    PagarRestoEfectivoView,
 )
 
 urlpatterns = [
@@ -19,4 +26,15 @@ urlpatterns = [
     path('<int:pago_id>/', DetallePagoView.as_view(),   name='detalle-pago'),
     path('verificar-mp/', VerificarPagoMPView.as_view(), name='verificar-mp'),
     path('confirmar-saldo/', ConfirmarPagoSaldoView.as_view(), name='confirmar-saldo'),
+
+    # ── Pago de Cuota Mensual (Cliente No Abonado) ────────────────────────
+    path('cuota/iniciar/',      IniciarPagoCuotaView.as_view(),     name='iniciar-cuota'),
+    path('cuota/confirmar/',    ConfirmarPagoCuotaView.as_view(),   name='confirmar-cuota'),
+    path('cuota/verificar-mp/', VerificarPagoCuotaMPView.as_view(), name='verificar-cuota-mp'),
+    path('cuota/efectivo/',     PagarCuotaEfectivoView.as_view(),   name='pagar-cuota-efectivo'),
+    path('cuota/configuracion/', ConfiguracionCuotaView.as_view(),  name='configuracion-cuota'),
+
+    # ── Registrar Pago en Efectivo del resto de una clase (Administrador) ─
+    path('saldos-pendientes/<str:dni>/', ListaSaldosPendientesView.as_view(), name='saldos-pendientes'),
+    path('registrar-efectivo/',          PagarRestoEfectivoView.as_view(),    name='registrar-efectivo'),
 ]

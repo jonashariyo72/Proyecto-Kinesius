@@ -1,4 +1,6 @@
-const API_URL = "http://127.0.0.1:8000/api/reservas";
+import { BASE_URL } from './config'
+
+const API_URL = `${BASE_URL}/reservas`
 
 export async function cancelarReserva(id) {
   const response = await fetch(

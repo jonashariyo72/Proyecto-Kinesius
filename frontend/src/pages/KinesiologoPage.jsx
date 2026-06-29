@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
 import api from '../services/clasesService'
+import FichaEvolucion from "../components/FichaEvolucion"
+import HistorialEvolucion from "../components/HistorialEvolucion";
 
 export default function KinesiologoPage() {
   const { logout, access } = useAuth()
@@ -10,6 +12,7 @@ export default function KinesiologoPage() {
 
   const [confirmarLogout, setConfirmarLogout] = useState(false)
   const [perfil, setPerfil]                   = useState(null)
+  const [vista, setVista] = useState("clases")
 
   useEffect(() => {
     api.get('/usuarios/perfil-kinesiologo/')
@@ -40,13 +43,56 @@ export default function KinesiologoPage() {
         </button>
       </header>
 
+      <div style={s.menu}>
+        <button
+          style={{
+            ...s.btnMenu,
+            ...(vista === "clases" ? s.btnMenuActivo : {})
+          }}
+          onClick={() => setVista("clases")}
+        >
+          Mis clases
+        </button>
+
+        <button
+          style={{
+            ...s.btnMenu,
+            ...(vista === "evolucion" ? s.btnMenuActivo : {})
+          }}
+          onClick={() => setVista("evolucion")}
+        >
+          Registrar evolución
+        </button>
+
+        <button
+          style={{
+            ...s.btnMenu,
+            ...(vista === "historial" ? s.btnMenuActivo : {})
+          }}
+          onClick={() => setVista("historial")}
+        >
+          Ver evolución
+        </button>
+      </div>
+
       <main style={s.main}>
-        {perfil && (
+        {perfil && vista === "clases" && (
           <Clases
             modoKinesiologo={true}
             kineId={perfil.id}
           />
         )}
+
+        {perfil && vista === "evolucion" && (
+          <FichaEvolucion />
+        )}
+
+        {perfil && vista === "historial" && (
+            <HistorialEvolucion
+                modoKinesiologo={true}
+            />
+        )}
+
       </main>
 
       {confirmarLogout && (
@@ -86,4 +132,24 @@ const s = {
   botonesRow:  { display: 'flex', gap: 10 },
   btnCancelar: { flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer', color: '#555' },
   btnConfirmar:{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  menu: {
+    display: "flex",
+    gap: 12,
+    padding: "20px 24px 0",
+  },
+
+  btnMenu: {
+    padding: "10px 18px",
+    borderRadius: 8,
+    border: "1px solid #ddd",
+    background: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+
+  btnMenuActivo: {
+    background: "#2d6a2d",
+    color: "#fff",
+    border: "1px solid #2d6a2d",
+  },
 }
