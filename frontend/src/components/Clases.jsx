@@ -69,6 +69,7 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
   const [buscarResultados, setBuscarResultados] = useState(null)
   const [buscarError, setBuscarError]           = useState('')
   const [buscarLoading, setBuscarLoading]       = useState(false)
+  const formularioCompleto =
     form.tipo && form.fecha && form.hora_inicio && form.sala && form.kinesiologo
 
   const cargar = async () => {
