@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
 import Clientes from '../components/Clientes'
+import Kinesiologos from '../components/Kinesiologos'
 import { obtenerQuejas } from '../services/quejaService'
 import ModalPagoEfectivo from '../components/PagoEfectivo'
-const API = 'http://localhost:8000/api'
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 export default function AdminPage() {
   const { logout, access } = useAuth()
@@ -281,6 +282,12 @@ export default function AdminPage() {
         </div>
 
         {verClientes && <Clientes />}
+
+        {/* ── Panel kinesiólogos ── */}
+        <div style={s.panelBuscar}>
+          <span style={s.panelPrecioLabel}>Kinesiólogos</span>
+          <Kinesiologos />
+        </div>
 
         {/* ── Panel precio ── */}
         <div style={s.panelPrecio}>
@@ -658,6 +665,7 @@ const s = {
   },
 
   panelPrecio: { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: '1rem 1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  panelBuscar: { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: '1rem 1.4rem', display: 'flex', flexDirection: 'column', gap: 10 },
   panelPrecioLeft:  { display: 'flex', flexDirection: 'column', gap: 4 },
   panelPrecioLabel: { fontSize: 12, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 },
   panelPrecioValor: { fontSize: 22, fontWeight: 700, color: '#c8a000' },

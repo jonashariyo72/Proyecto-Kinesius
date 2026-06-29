@@ -21,7 +21,6 @@ from .serializers import (
     LoginSerializer,
     Verificacion2FASerializer,
 )
-from apps.pagos.pricing import cliente_tiene_abono_vigente
 
 
 
@@ -266,12 +265,42 @@ class ListaKinesiologosView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        kines = Kinesiologo.objects.select_related('usuario').filter(usuario__is_active=True)
+        from django.db.models import Count, Q
+
+        query = request.query_params.get('q', '').strip()
+
+        kines = Kinesiologo.objects.select_related('usuario').filter(
+            usuario__is_active=True
+        ).annotate(cantidad_clases=Count('clases', filter=Q(clases__activa=True)))
+
+        if query:
+            es_dni = query.replace(' ', '').isdigit()
+            if es_dni:
+                kines = kines.filter(usuario__dni__icontains=query)
+            else:
+                from django.db.models import Q as DQ
+                partes = query.split()
+                q_filter = DQ()
+                for parte in partes:
+                    q_filter |= DQ(usuario__nombre__icontains=parte) | DQ(usuario__apellido__icontains=parte)
+                kines = kines.filter(q_filter)
+
+            if not kines.exists():
+                mensaje = (
+                    'No hay coincidencias para el DNI ingresado'
+                    if es_dni else
+                    'No hay coincidencias para el nombre ingresado'
+                )
+                return Response({'error': mensaje}, status=status.HTTP_404_NOT_FOUND)
 
         data = [
             {
-                'id': k.id,
-                'nombre': f'{k.usuario.nombre} {k.usuario.apellido}',
+                'id':              k.id,
+                'nombre':          k.usuario.nombre,
+                'apellido':        k.usuario.apellido,
+                'dni':             k.usuario.dni,
+                'email':           k.usuario.email,
+                'cantidad_clases': k.cantidad_clases,
             }
             for k in kines
         ]
@@ -347,14 +376,7 @@ class PerfilClienteView(APIView):
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
             return Response({'error': 'No es cliente'}, status=403)
-        es_abonado_vigente = cliente_tiene_abono_vigente(cliente, timezone.localdate())
-        return Response({
-            'id': cliente.id,
-            'email': request.user.email,
-            'nombre': request.user.nombre,
-            'es_abonado': es_abonado_vigente,
-            'fecha_venc_cuota': str(cliente.fecha_venc_cuota) if cliente.fecha_venc_cuota else None,
-        })
+        return Response({'id': cliente.id, 'email': request.user.email})
 
     
 #Recuperar contraseña
