@@ -80,15 +80,27 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
     setLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams()
-      if (filtroDia)         params.append('dia',         filtroDia)
-      if (filtroTipo)        params.append('tipo',        filtroTipo)
-      if (filtroKinesiologo) params.append('kinesiologo', filtroKinesiologo)
-      if (modoKinesiologo && kineId) params.append('kinesiologo', kineId)
+    const params = new URLSearchParams()
+    if (filtroDia)  params.append('dia', filtroDia)
+    if (filtroTipo) params.append('tipo', filtroTipo)
 
-      const res  = await api.get(`/clases/?${params.toString()}`)
-      const data = Array.isArray(res.data) ? res.data : res.data.results ?? []
-      setClases(data)
+    let res
+
+    if (modoKinesiologo) {
+      res = await api.get('/clases/mis-clases/')
+    } else {
+      if (filtroKinesiologo) params.append('kinesiologo', filtroKinesiologo)
+      res = await api.get(`/clases/?${params.toString()}`)
+    }
+
+    let data = Array.isArray(res.data) ? res.data : res.data.results ?? []
+
+    if (modoKinesiologo) {
+      if (filtroDia) data = data.filter(c => c.dia === filtroDia)
+      if (filtroTipo) data = data.filter(c => c.tipo === filtroTipo)
+    }
+
+    setClases(data)
     } catch {
       setError('No se pudieron cargar las clases.')
     } finally {

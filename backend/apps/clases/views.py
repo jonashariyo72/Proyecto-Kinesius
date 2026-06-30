@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-
+from django.utils import timezone
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -230,7 +230,8 @@ class GenerarQRClaseView(APIView):
 
         # URL que va a abrir el celular al escanear
         # En desarrollo usar la IP local o ngrok
-        url_asistencia = f"http://192.168.100.17:5173/asistencia/qr/{clase.qr_token}/"
+        frontend_url = "https://choking-nursing-reveler.ngrok-free.dev"
+        url_asistencia = f"http://172.20.10.13:5173/asistencia/qr/{clase.qr_token}/"
 
         # Generar imagen QR
         qr = qrcode.QRCode(
@@ -302,12 +303,26 @@ class AsistenciaQRView(APIView):
             )
 
         if reserva.asistio:
-            return Response(
-                {'mensaje': 'Ya registraste tu asistencia para esta clase'},
-                status=status.HTTP_200_OK
-            )
+                    return Response(
+                        {'mensaje': 'Ya registraste tu asistencia para esta clase'},
+                        status=status.HTTP_200_OK
+                    )
+
+                # Bloquear si pagó seña y no completó el pago
+        from apps.pagos.models import PagoReserva
+        try:
+            pago = PagoReserva.objects.get(reserva=reserva)
+            if pago.tipo_pago == 'sena' and pago.saldo_pendiente > 0:
+                return Response(
+                    {'error': 'Tenés una seña pendiente de completar. Hablá con el administrador para pagar el resto antes de registrar tu asistencia.'},
+                     status=status.HTTP_400_BAD_REQUEST
+                )
+        except PagoReserva.DoesNotExist:
+            pass
 
         reserva.asistio = True
+        reserva.metodo_asistencia = 'QR'
+        reserva.fecha_asistencia = timezone.now()
         reserva.save()
 
         return Response({
@@ -353,14 +368,46 @@ class AsistenciaManualView(APIView):
             )
 
         try:
-            reserva = Reserva.objects.get(id=reserva_id, clase=clase)
+                    reserva = Reserva.objects.get(id=reserva_id, clase=clase)
+                    if reserva.metodo_asistencia == 'QR':
+                        return Response(
+                            {'error': 'La asistencia fue registrada por QR y no puede modificarse manualmente.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
         except Reserva.DoesNotExist:
-            return Response(
-                {'error': 'Reserva no encontrada'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+                    return Response(
+                        {'error': 'Reserva no encontrada'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
+                # Bloquear asistencia si pagó seña y no completó el pago
+        if asistio:
+            from apps.pagos.models import PagoReserva
+            try:
+                pago = PagoReserva.objects.get(reserva=reserva)
+                if pago.tipo_pago == 'sena' and pago.saldo_pendiente > 0:
+                    return Response(
+                        {'error': 'El cliente tiene una seña pendiente de completar. No se puede marcar asistencia hasta que pague el resto.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except PagoReserva.DoesNotExist:
+                pass
+
+        # Bloquear asistencia si pagó seña y no completó el pago
+        if asistio:
+            from apps.pagos.models import PagoReserva
+            try:
+                pago = PagoReserva.objects.get(reserva=reserva)
+                if pago.tipo_pago == 'sena' and pago.saldo_pendiente > 0:
+                    return Response(
+                        {'error': 'El cliente tiene una seña pendiente de completar. No se puede marcar asistencia hasta que pague el resto.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except PagoReserva.DoesNotExist:
+                pass
         reserva.asistio = asistio
+        reserva.metodo_asistencia = 'MANUAL'
+        reserva.fecha_asistencia = timezone.now()
         reserva.save()
 
         return Response({

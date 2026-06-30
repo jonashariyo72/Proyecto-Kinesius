@@ -50,6 +50,19 @@ class Reserva(models.Model):
     )
 
     asistio = models.BooleanField(default=False)
+    METODO_ASISTENCIA = (
+        ('QR', 'QR'),
+        ('MANUAL', 'Manual'),
+    )
+
+    metodo_asistencia = models.CharField(
+        max_length=10,
+        choices=METODO_ASISTENCIA,
+        null=True,
+        blank=True
+    )
+
+    fecha_asistencia = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f'{self.paciente} - {self.clase}'
