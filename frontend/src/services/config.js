@@ -1,9 +1,4 @@
-// Para desarrollo local (compu)
-export const BASE_URL = 'http://localhost:8000/api'
+// Modo celular/hotspot
+export const BASE_URL = 'http://172.20.10.13:8000/api'
 
-// Para celular con ngrok (descomentar cuando usen ngrok)
-// export const BASE_URL = 'https://choking-nursing-reveler.ngrok-free.dev/api'
-
-export const NGROK_HEADERS = {
-  'ngrok-skip-browser-warning': 'true'
-}
+export const NGROK_HEADERS = {}

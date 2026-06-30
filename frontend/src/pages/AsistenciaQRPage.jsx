@@ -21,9 +21,16 @@ export default function AsistenciaQRPage() {
     async function registrar() {
       try {
         const res = await api.post(`/clases/asistencia/qr/${token}/`)
-        setEstado('ok')
-        setMensaje('¡Asistencia registrada!')
-        setSubmensaje(res.data.mensaje || '')
+
+        if (res.data.mensaje?.includes('Ya registraste')) {
+          setEstado('ya_registrado')
+          setMensaje('Ya escaneaste el QR anteriormente')
+          setSubmensaje('Tu presencia en esta clase ya fue confirmada')
+        } else {
+          setEstado('ok')
+          setMensaje('¡Asistencia registrada!')
+          setSubmensaje(res.data.mensaje || '')
+        }
       } catch (err) {
         const errorMsg = err.response?.data?.error || ''
         setEstado('error')
@@ -31,9 +38,9 @@ export default function AsistenciaQRPage() {
         if (err.response?.status === 401) {
           setMensaje('Tenés que iniciar sesión primero')
           setSubmensaje('Iniciá sesión en Kinescius y volvé a escanear el QR')
-        } else if (errorMsg.includes('Ya registraste')) {
-          setMensaje('Ya registraste tu asistencia')
-          setSubmensaje('Tu presencia en esta clase ya fue confirmada')
+        } else if (errorMsg.includes('seña pendiente')) {
+          setMensaje('Tenés una seña pendiente')
+          setSubmensaje('Hablá con el administrador para pagar el resto antes de ingresar')
         } else if (errorMsg.includes('reserva confirmada')) {
           setMensaje('No estás anotado en esta clase')
           setSubmensaje('No tenés una reserva confirmada para esta sesión')
@@ -47,8 +54,15 @@ export default function AsistenciaQRPage() {
     registrar()
   }, [token])
 
-  const color = estado === 'ok' ? '#2d6a2d' : estado === 'error' ? '#c0392b' : '#555'
-  const emoji = estado === 'ok' ? '✓' : estado === 'error' ? '✕' : '⏳'
+  const color = estado === 'ok' ? '#2d6a2d'
+              : estado === 'ya_registrado' ? '#c8a000'
+              : estado === 'error' ? '#c0392b'
+              : '#555'
+
+  const emoji = estado === 'ok' ? '✓'
+              : estado === 'ya_registrado' ? '!'
+              : estado === 'error' ? '✕'
+              : '⏳'
 
   return (
     <div style={{

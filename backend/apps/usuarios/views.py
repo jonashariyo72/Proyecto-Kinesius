@@ -21,7 +21,6 @@ from .serializers import (
     LoginSerializer,
     Verificacion2FASerializer,
 )
-from apps.pagos.pricing import cliente_tiene_abono_vigente
 
 
 
@@ -266,12 +265,42 @@ class ListaKinesiologosView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        kines = Kinesiologo.objects.select_related('usuario').filter(usuario__is_active=True)
+        from django.db.models import Count, Q
+
+        query = request.query_params.get('q', '').strip()
+
+        kines = Kinesiologo.objects.select_related('usuario').filter(
+            usuario__is_active=True
+        ).annotate(cantidad_clases=Count('clases', filter=Q(clases__activa=True)))
+
+        if query:
+            es_dni = query.replace(' ', '').isdigit()
+            if es_dni:
+                kines = kines.filter(usuario__dni__icontains=query)
+            else:
+                from django.db.models import Q as DQ
+                partes = query.split()
+                q_filter = DQ()
+                for parte in partes:
+                    q_filter |= DQ(usuario__nombre__icontains=parte) | DQ(usuario__apellido__icontains=parte)
+                kines = kines.filter(q_filter)
+
+            if not kines.exists():
+                mensaje = (
+                    'No hay coincidencias para el DNI ingresado'
+                    if es_dni else
+                    'No hay coincidencias para el nombre ingresado'
+                )
+                return Response({'error': mensaje}, status=status.HTTP_404_NOT_FOUND)
 
         data = [
             {
-                'id': k.id,
-                'nombre': f'{k.usuario.nombre} {k.usuario.apellido}',
+                'id':              k.id,
+                'nombre':          k.usuario.nombre,
+                'apellido':        k.usuario.apellido,
+                'dni':             k.usuario.dni,
+                'email':           k.usuario.email,
+                'cantidad_clases': k.cantidad_clases,
             }
             for k in kines
         ]
@@ -347,14 +376,7 @@ class PerfilClienteView(APIView):
         cliente = getattr(request.user, 'cliente', None)
         if not cliente:
             return Response({'error': 'No es cliente'}, status=403)
-        es_abonado_vigente = cliente_tiene_abono_vigente(cliente, timezone.localdate())
-        return Response({
-            'id': cliente.id,
-            'email': request.user.email,
-            'nombre': request.user.nombre,
-            'es_abonado': es_abonado_vigente,
-            'fecha_venc_cuota': str(cliente.fecha_venc_cuota) if cliente.fecha_venc_cuota else None,
-        })
+        return Response({'id': cliente.id, 'email': request.user.email})
 
     
 #Recuperar contraseña
@@ -533,34 +555,87 @@ class BajaUsuarioView(APIView):
             if clases_asignadas.exists():
                 # Si no se mandó un nuevo kinesiólogo, pedir reasignación
                 if not nuevo_kine_id:
-                    clases_data = [
-                        {
+                    todos_los_kines = Kinesiologo.objects.select_related('usuario').filter(
+                        usuario__is_active=True
+                    ).exclude(id=usuario.kinesiologo.id)
+
+                    clases_data = []
+                    for c in clases_asignadas:
+                        # Kinesiólogos que YA tienen una clase activa ese mismo día y horario
+                        ocupados_ids = Clase.objects.filter(
+                            dia=c.dia,
+                            hora_inicio=c.hora_inicio,
+                            activa=True,
+                        ).exclude(id=c.id).values_list('kinesiologo_id', flat=True)
+
+                        disponibles = [
+                            {'id': k.id, 'nombre': f'{k.usuario.nombre} {k.usuario.apellido}'}
+                            for k in todos_los_kines
+                            if k.id not in ocupados_ids
+                        ]
+
+                        clases_data.append({
                             'id':          c.id,
                             'tipo':        c.get_tipo_display(),
                             'dia':         c.get_dia_display(),
                             'hora_inicio': str(c.hora_inicio),
-                        }
-                        for c in clases_asignadas
-                    ]
+                            'kinesiologos_disponibles': disponibles,
+                        })
+
                     return Response(
                         {
                             'requiere_reasignacion': True,
                             'clases': clases_data,
-                            'mensaje': 'El kinesiólogo tiene clases asignadas. Seleccioná un kinesiólogo para reasignarlas.'
+                            'mensaje': 'El kinesiólogo tiene clases asignadas. Seleccioná un kinesiólogo disponible para cada una.'
                         },
                         status=status.HTTP_200_OK
                     )
 
-                # Reasignar clases al nuevo kinesiólogo
-                try:
-                    nuevo_kine = Kinesiologo.objects.get(id=nuevo_kine_id, usuario__is_active=True)
-                except Kinesiologo.DoesNotExist:
-                    return Response(
-                        {'error': 'El kinesiólogo seleccionado para reasignación no existe.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                # nuevo_kine_id ahora es un dict { clase_id: kinesiologo_id }
+                import json
+                if isinstance(nuevo_kine_id, str):
+                    try:
+                        asignaciones = json.loads(nuevo_kine_id)
+                    except (ValueError, TypeError):
+                        return Response(
+                            {'error': 'Formato de reasignación inválido.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                else:
+                    asignaciones = nuevo_kine_id
 
-                clases_asignadas.update(kinesiologo=nuevo_kine)
+                for c in clases_asignadas:
+                    kine_id = asignaciones.get(str(c.id))
+                    if not kine_id:
+                        return Response(
+                            {'error': f'Falta seleccionar un kinesiólogo para la clase {c.get_tipo_display()} ({c.get_dia_display()} {c.hora_inicio}).'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    try:
+                        nuevo_kine = Kinesiologo.objects.get(id=kine_id, usuario__is_active=True)
+                    except Kinesiologo.DoesNotExist:
+                        return Response(
+                            {'error': 'Uno de los kinesiólogos seleccionados no existe o está inactivo.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # Re-validar conflicto de horario (por seguridad ante condiciones de carrera)
+                    conflicto = Clase.objects.filter(
+                        dia=c.dia,
+                        hora_inicio=c.hora_inicio,
+                        kinesiologo=nuevo_kine,
+                        activa=True,
+                    ).exclude(id=c.id).exists()
+
+                    if conflicto:
+                        return Response(
+                            {'error': f'El kinesiólogo seleccionado ya tiene una clase asignada el {c.get_dia_display()} a las {c.hora_inicio}.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    c.kinesiologo = nuevo_kine
+                    c.save()
 
         if hasattr(usuario, 'administrador'):
             return Response(

@@ -15,6 +15,9 @@ from apps.pagos.pricing import (
     cliente_tiene_abono_vigente,
     contar_cancelaciones_tardias_en_periodo,
 )
+from apps.pagos.pricing import calcular_monto_total_reserva
+from apps.pagos.models import PagoReserva
+from datetime import datetime
 
 class ReservaViewSet(viewsets.ModelViewSet):
     queryset = Reserva.objects.all()
@@ -414,16 +417,42 @@ class ReservaViewSet(viewsets.ModelViewSet):
             estado='CONFIRMADA'
         ).select_related('paciente__usuario')
 
-        data = [
-            {
+        ahora = timezone.now()
+
+        data = []
+        for r in reservas:
+            sena_pendiente = False
+            try:
+                pago = PagoReserva.objects.get(reserva=r)
+                if pago.tipo_pago == 'sena' and pago.saldo_pendiente > 0:
+                    # Verificar si la clase ya terminó
+                    fecha_hora_fin = datetime.combine(
+                        r.clase.fecha_clase,
+                        r.clase.hora_inicio
+                    )
+                    fecha_hora_fin = timezone.make_aware(fecha_hora_fin) + timedelta(hours=1)
+
+                    if ahora >= fecha_hora_fin:
+                        # Clase terminada y no pagó → suspender
+                        cliente = r.paciente
+                        if not cliente.suspendido:
+                            cliente.suspendido = True
+                            cliente.fecha_suspension = ahora
+                            cliente.save()
+                    else:
+                        sena_pendiente = True
+            except PagoReserva.DoesNotExist:
+                pass
+
+            data.append({
                 'reserva_id': r.id,
                 'nombre': r.paciente.usuario.nombre,
                 'apellido': r.paciente.usuario.apellido,
                 'email': r.paciente.usuario.email,
                 'asistio': r.asistio,
-            }
-            for r in reservas
-        ]
+                'metodo_asistencia': r.metodo_asistencia,
+                'sena_pendiente': sena_pendiente,
+            })
 
         return Response(data)
 

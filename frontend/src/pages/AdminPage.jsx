@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Clases from '../components/Clases'
 import Clientes from '../components/Clientes'
+import Kinesiologos from '../components/Kinesiologos'
 import { obtenerQuejas } from '../services/quejaService'
 import ModalPagoEfectivo from '../components/PagoEfectivo'
-const API = 'http://localhost:8000/api'
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 export default function AdminPage() {
   const { logout, access } = useAuth()
@@ -37,7 +38,7 @@ export default function AdminPage() {
   // Reasignación de clases cuando se da de baja un kine
   const [clasesKine, setClasesKine]           = useState([])
   const [requiereReasignacion, setRequiereReasignacion] = useState(false)
-  const [nuevoKineId, setNuevoKineId]         = useState('')
+  const [asignaciones, setAsignaciones]       = useState({})
   const [kinesiologos, setKinesiologos]       = useState([])
 
   // Modal registro kine
@@ -124,33 +125,25 @@ export default function AdminPage() {
     }
   }
 
-  const abrirModalBaja = async () => {
+  const abrirModalBaja = () => {
     setBajaDni('')
     setBajaRol('cliente')
     setBajaError('')
     setBajaOk('')
     setClasesKine([])
     setRequiereReasignacion(false)
-    setNuevoKineId('')
+    setAsignaciones({})
     setModalBaja(true)
-    // Cargar lista de kines para reasignación
-    try {
-      const res = await fetch(`${API}/usuarios/kinesiologos/`, {
-        headers: { 'Authorization': `Bearer ${access}` },
-      })
-      const data = await res.json()
-      setKinesiologos(Array.isArray(data) ? data : data.results ?? [])
-    } catch { /* silencioso */ }
   }
 
-  const handleBaja = async (nuevo_kinesiologo_id = null) => {
+  const handleBaja = async (asignacionesEnviar = null) => {
     setBajaError('')
     setBajaOk('')
     setBajaLoading(true)
 
     try {
       const body = { dni: bajaDni, rol: bajaRol }
-      if (nuevo_kinesiologo_id) body.nuevo_kinesiologo_id = nuevo_kinesiologo_id
+      if (asignacionesEnviar) body.nuevo_kinesiologo_id = asignacionesEnviar
 
       const res = await fetch(`${API}/usuarios/baja-usuario/`, {
         method: 'POST',
@@ -285,6 +278,12 @@ export default function AdminPage() {
         </div>
 
         {verClientes && <Clientes />}
+
+        {/* ── Panel kinesiólogos ── */}
+        <div style={s.panelBuscar}>
+          <span style={s.panelPrecioLabel}>Kinesiólogos</span>
+          <Kinesiologos />
+        </div>
 
         {/* ── Panel precio ── */}
         <div style={s.panelPrecio}>
@@ -561,29 +560,32 @@ export default function AdminPage() {
               <>
                 <p style={s.modalTexto}>
                   Este kinesiólogo tiene <strong>{clasesKine.length}</strong> clase(s) activa(s). 
-                  Seleccioná un kinesiólogo para reasignarlas antes de continuar.
+                  Seleccioná un kinesiólogo disponible para cada una.
                 </p>
 
-                <div style={s.clasesList}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 320, overflowY: 'auto' }}>
                   {clasesKine.map(c => (
-                    <div key={c.id} style={s.claseItem}>
-                      {c.tipo} — {c.dia} {c.hora_inicio}
+                    <div key={c.id} style={s.formGroup}>
+                      <label style={s.label}>
+                        {c.tipo} — {c.dia} {c.hora_inicio}
+                      </label>
+                      <select
+                        style={s.input}
+                        value={asignaciones[c.id] ?? ''}
+                        onChange={e =>
+                          setAsignaciones(a => ({ ...a, [c.id]: e.target.value }))
+                        }
+                      >
+                        <option value="">Seleccioná un kinesiólogo...</option>
+                        {c.kinesiologos_disponibles.length === 0 && (
+                          <option value="" disabled>No hay kinesiólogos disponibles para este horario</option>
+                        )}
+                        {c.kinesiologos_disponibles.map(k => (
+                          <option key={k.id} value={k.id}>{k.nombre}</option>
+                        ))}
+                      </select>
                     </div>
                   ))}
-                </div>
-
-                <div style={s.formGroup}>
-                  <label style={s.label}>Reasignar a</label>
-                  <select
-                    style={s.input}
-                    value={nuevoKineId}
-                    onChange={e => setNuevoKineId(e.target.value)}
-                  >
-                    <option value="">Seleccioná un kinesiólogo...</option>
-                    {kinesiologos.map(k => (
-                      <option key={k.id} value={k.id}>{k.nombre}</option>
-                    ))}
-                  </select>
                 </div>
 
                 {bajaError && <p style={s.error}>{bajaError}</p>}
@@ -593,9 +595,12 @@ export default function AdminPage() {
                     Atrás
                   </button>
                   <button
-                    style={{ ...s.btnBajaConfirmar, opacity: (!nuevoKineId || bajaLoading) ? 0.5 : 1 }}
-                    onClick={() => handleBaja(nuevoKineId)}
-                    disabled={!nuevoKineId || bajaLoading}
+                    style={{
+                      ...s.btnBajaConfirmar,
+                      opacity: (clasesKine.some(c => !asignaciones[c.id]) || bajaLoading) ? 0.5 : 1,
+                    }}
+                    onClick={() => handleBaja(JSON.stringify(asignaciones))}
+                    disabled={clasesKine.some(c => !asignaciones[c.id]) || bajaLoading}
                   >
                     {bajaLoading ? 'Procesando...' : 'Confirmar baja'}
                   </button>
@@ -655,6 +660,7 @@ const s = {
   },
 
   panelPrecio: { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: '1rem 1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  panelBuscar: { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: '1rem 1.4rem', display: 'flex', flexDirection: 'column', gap: 10 },
   panelPrecioLeft:  { display: 'flex', flexDirection: 'column', gap: 4 },
   panelPrecioLabel: { fontSize: 12, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 },
   panelPrecioValor: { fontSize: 22, fontWeight: 700, color: '#c8a000' },

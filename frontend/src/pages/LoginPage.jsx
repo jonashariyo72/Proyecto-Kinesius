@@ -24,6 +24,13 @@ function FormCredenciales({ onRequiere2FA, onError }) {
  
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+
+
+
+
+
+    
     onError('')
     setCargando(true)
     try {
