@@ -10,6 +10,11 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
+from apps.pagos.pricing import (
+    calcular_monto_total_reserva,
+    cliente_tiene_abono_vigente,
+    contar_cancelaciones_tardias_en_periodo,
+)
 from apps.pagos.pricing import calcular_monto_total_reserva
 from apps.pagos.models import PagoReserva
 from datetime import datetime
@@ -61,6 +66,7 @@ class ReservaViewSet(viewsets.ModelViewSet):
 
             if monto_total == Decimal('0.00'):
                 reserva.estado = 'CONFIRMADA'
+                reserva.cubierta_por_abono = True
                 reserva.save()
                 response.data['estado'] = reserva.estado
                 response.data['cubierta_por_abono'] = True
@@ -124,6 +130,61 @@ class ReservaViewSet(viewsets.ModelViewSet):
         from decimal import Decimal
 
         saldo = Decimal('0')
+        ahora = timezone.now()
+        fecha_hora_clase = datetime.combine(
+            reserva.clase.fecha_clase,
+            reserva.clase.hora_inicio
+        )
+        fecha_hora_clase = timezone.make_aware(fecha_hora_clase)
+        diferencia = fecha_hora_clase - ahora
+        es_abonado = cliente_tiene_abono_vigente(reserva.paciente, reserva.clase.fecha_clase)
+        cancelacion_tardia = es_abonado and diferencia < timedelta(hours=48)
+        penalizaciones_mes = 0
+        tipo_devolucion = 'ninguna'
+
+        if es_abonado:
+            try:
+                pago = reserva.pago
+            except PagoReserva.DoesNotExist:
+                pago = None
+
+            if pago and pago.estado == 'aprobado':
+                saldo = pago.monto_abonado
+                tipo_devolucion = 'saldo'
+                pago.monto_devuelto = saldo
+                pago.save()
+
+                reserva.paciente.saldo_a_favor += saldo
+                reserva.paciente.save()
+            else:
+                reserva.cubierta_por_abono = True
+                tipo_devolucion = 'cupo'
+
+            reserva.estado = 'CANCELADA'
+            reserva.cancelacion_tardia = cancelacion_tardia
+            reserva.fecha_cancelacion = ahora
+            reserva.save()
+
+            if cancelacion_tardia:
+                penalizaciones_mes = contar_cancelaciones_tardias_en_periodo(
+                    reserva.paciente,
+                    reserva.clase.fecha_clase
+                )
+                reserva.paciente.cant_cancelaciones = penalizaciones_mes
+                reserva.paciente.save()
+
+            return Response(
+                {
+                    "mensaje": "Reserva cancelada correctamente",
+                    "saldo_a_favor": str(saldo),
+                    "tipo_devolucion": tipo_devolucion,
+                    "cupo_abono_liberado": tipo_devolucion == 'cupo',
+                    "cancelacion_tardia": cancelacion_tardia,
+                    "penalizaciones_mes": penalizaciones_mes,
+                    "pierde_descuento_abonado": penalizaciones_mes >= 3,
+                },
+                status=status.HTTP_200_OK
+            )
 
         try:
             pago = reserva.pago
@@ -131,7 +192,6 @@ class ReservaViewSet(viewsets.ModelViewSet):
                 ahora = timezone.now()
 
                 # Combinar fecha_clase con hora_inicio para calcular diferencia
-                from datetime import datetime
                 fecha_hora_clase = datetime.combine(
                     reserva.clase.fecha_clase,
                     reserva.clase.hora_inicio
@@ -140,7 +200,9 @@ class ReservaViewSet(viewsets.ModelViewSet):
                 diferencia = fecha_hora_clase - ahora
 
                 # Más de 24 hs → devolucion total
-                if diferencia > timedelta(hours=24):
+                if es_abonado:
+                    saldo = pago.monto_abonado
+                elif diferencia > timedelta(hours=24):
                     saldo = pago.monto_abonado
 
                 # Menos de 24 hs
@@ -160,10 +222,21 @@ class ReservaViewSet(viewsets.ModelViewSet):
                     cliente.saldo_a_favor += saldo
                     cliente.save()
         except PagoReserva.DoesNotExist:
-            pass
+            if es_abonado:
+                reserva.cubierta_por_abono = True
 
         reserva.estado = 'CANCELADA'
+        reserva.cancelacion_tardia = cancelacion_tardia
+        reserva.fecha_cancelacion = ahora
         reserva.save()
+
+        if cancelacion_tardia:
+            penalizaciones_mes = contar_cancelaciones_tardias_en_periodo(
+                reserva.paciente,
+                reserva.clase.fecha_clase
+            )
+            reserva.paciente.cant_cancelaciones = penalizaciones_mes
+            reserva.paciente.save()
 
         # Notificar al primero en lista de espera
         primer_espera = ListaEspera.objects.filter(
@@ -209,12 +282,15 @@ class ReservaViewSet(viewsets.ModelViewSet):
             )
 
             email.attach_alternative(html_content, "text/html")
-            email.send()
+            email.send(fail_silently=True)
 
         return Response(
             {
                 "mensaje": "Reserva cancelada correctamente",
-                "saldo_a_favor": str(saldo)
+                "saldo_a_favor": str(saldo),
+                "cancelacion_tardia": cancelacion_tardia,
+                "penalizaciones_mes": penalizaciones_mes,
+                "pierde_descuento_abonado": penalizaciones_mes >= 3,
             },
             status=status.HTTP_200_OK
         )
@@ -235,19 +311,56 @@ class ReservaViewSet(viewsets.ModelViewSet):
         mensaje = ""
         devolucion = Decimal('0')
 
+        ahora = timezone.now()
+        fecha_hora_clase = datetime.combine(
+            reserva.clase.fecha_clase,
+            reserva.clase.hora_inicio
+        )
+        fecha_hora_clase = timezone.make_aware(fecha_hora_clase)
+        diferencia = fecha_hora_clase - ahora
+        es_abonado = cliente_tiene_abono_vigente(reserva.paciente, reserva.clase.fecha_clase)
+
+        if es_abonado:
+            if diferencia >= timedelta(hours=48):
+                try:
+                    pago = reserva.pago
+                    devolucion = pago.monto_abonado
+                    mensaje = (
+                        "Cancelas con mas de 48 hs de anticipacion. "
+                        "Como esta clase fue pagada aparte del abono, se devuelve el importe como saldo a favor."
+                    )
+                except Exception:
+                    mensaje = (
+                        "Cancelas con mas de 48 hs de anticipacion. "
+                        "Como esta clase usaba uno de tus 4 cupos incluidos, se te devuelve el cupo para usarlo en otra clase del mes."
+                    )
+            else:
+                penalizaciones = contar_cancelaciones_tardias_en_periodo(
+                    reserva.paciente,
+                    reserva.clase.fecha_clase
+                ) + 1
+                try:
+                    pago = reserva.pago
+                    devolucion = pago.monto_abonado
+                    detalle_devolucion = "Como esta clase fue pagada aparte del abono, se devuelve el importe como saldo a favor."
+                except Exception:
+                    detalle_devolucion = "Como esta clase usaba uno de tus 4 cupos incluidos, se te devuelve el cupo para usarlo en otra clase del mes."
+
+                mensaje = (
+                    "Cancelas con menos de 48 hs de anticipacion. "
+                    f"Esta cancelacion suma una penalizacion ({penalizaciones}/3). "
+                    f"{detalle_devolucion}"
+                )
+                if penalizaciones >= 3:
+                    mensaje += " Al llegar a 3, perdes el descuento en las proximas clases extra de este mes."
+
+            return Response({
+                "mensaje": mensaje,
+                "devolucion": str(devolucion)
+            })
+
         try:
             pago = reserva.pago
-
-            ahora = timezone.now()
-
-            fecha_hora_clase = datetime.combine(
-                reserva.clase.fecha_clase,
-                reserva.clase.hora_inicio
-            )
-
-            fecha_hora_clase = timezone.make_aware(fecha_hora_clase)
-
-            diferencia = fecha_hora_clase - ahora
 
             if diferencia >= timedelta(hours=24):
 
@@ -695,6 +808,7 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
             cubierta_por_abono = monto_total == Decimal('0.00')
             if cubierta_por_abono and reserva_existente.estado != 'CONFIRMADA':
                 reserva_existente.estado = 'CONFIRMADA'
+                reserva_existente.cubierta_por_abono = True
                 reserva_existente.save()
 
             return Response(
@@ -716,6 +830,7 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
         cubierta_por_abono = monto_total == Decimal('0.00')
         if cubierta_por_abono:
             reserva.estado = 'CONFIRMADA'
+            reserva.cubierta_por_abono = True
             reserva.save()
 
         return Response(

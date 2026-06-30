@@ -104,6 +104,9 @@ export default function PagoCuotaPage({ onPagoExitoso, onCancelar }) {
               <span>Monto de la cuota:</span>
               <strong>{formatARS(MONTO_CUOTA)}</strong>
             </div>
+            <p className="auth-hint">
+              Este valor equivale a 4 clases de $15.000 con un 20% de descuento.
+            </p>
 
             <button className="btn-primary" style={{ marginTop: 16 }} onClick={handlePagarCuota}>
               Pagar Cuota
