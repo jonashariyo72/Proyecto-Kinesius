@@ -8,12 +8,80 @@ import { obtenerQuejas } from '../services/quejaService'
 import ModalPagoEfectivo from '../components/PagoEfectivo'
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
+const iconProps = {
+  width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none',
+  stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+}
+
+function IconWallet() {
+  return (
+    <svg {...iconProps}>
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+    </svg>
+  )
+}
+
+function IconUsers() {
+  return (
+    <svg {...iconProps}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  )
+}
+
+function IconClipboard() {
+  return (
+    <svg {...iconProps}>
+      <rect x="6" y="4" width="12" height="16" rx="2" />
+      <path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
+      <line x1="9" y1="10" x2="15" y2="10" />
+      <line x1="9" y1="14" x2="15" y2="14" />
+    </svg>
+  )
+}
+
+function IconUserPlus() {
+  return (
+    <svg {...iconProps}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
+  )
+}
+
+function IconUserX() {
+  return (
+    <svg {...iconProps}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="17" y1="8" x2="22" y2="13" />
+      <line x1="22" y1="8" x2="17" y2="13" />
+    </svg>
+  )
+}
+
+function IconMessage() {
+  return (
+    <svg {...iconProps}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
 export default function AdminPage() {
   const { logout, access } = useAuth()
   const navigate          = useNavigate()
   const [modalEfectivo, setModalEfectivo] = useState(false)
   const [confirmarLogout, setConfirmarLogout] = useState(false)
   const [verClientes, setVerClientes]         = useState(false)
+  const [verKinesiologos, setVerKinesiologos] = useState(false)
   const [precio, setPrecio]                   = useState(15000)
   const [inputPrecio, setInputPrecio]         = useState(15000)
   const [editandoPrecio, setEditandoPrecio]   = useState(false)
@@ -233,53 +301,67 @@ export default function AdminPage() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <div style={s.logoWrap}>
-          <span style={s.logoK}>K</span>
-          <span style={s.logoRest}>INESCIUS</span>
-          <span style={s.badge}>Administrador</span>
-        </div>
-        <button style={s.btnLogout} onClick={() => setConfirmarLogout(true)}>
-          Cerrar sesión
-        </button>
-      </header>
+        <div style={s.headerTopRow}>
+          <div style={s.logoWrap}>
+            <span style={s.logoK}>K</span>
+            <span style={s.logoRest}>INESCIUS</span>
+            <span style={s.badge}>Administrador</span>
+          </div>
 
-      <main style={s.main}>
-        <div style={s.btnRow}>
-          <button style={s.btnPagoEfectivo} 
-          onClick={() => setModalEfectivo(true)}>Registrar Pago en Efectivo
+          <button style={s.btnLogout} onClick={() => setConfirmarLogout(true)}>
+            Cerrar sesión
           </button>
+        </div>
+
+        <nav style={s.headerNav}>
+          <button style={s.navLink} onClick={() => setModalEfectivo(true)}>
+            <IconWallet /> Registrar pago en efectivo
+          </button>
+
           <button
-            style={{ ...s.btnToggle, ...(verClientes ? s.btnToggleActive : {}) }}
+            style={{ ...s.navLink, ...(verClientes ? s.navLinkActive : {}) }}
             onClick={() => setVerClientes(v => !v)}
           >
-            {verClientes ? 'Ocultar clientes' : 'Ver clientes registrados'}
-          </button>
-
-          <button style={s.btnRegistrarKine} onClick={abrirModalKine}>
-            + Registrar kinesiólogo
-          </button>
-
-          <button style={s.btnBaja} onClick={abrirModalBaja}>
-            Dar de baja usuario
+            <IconUsers /> {verClientes ? 'Ocultar clientes' : 'Ver clientes registrados'}
           </button>
 
           <button
+            style={{ ...s.navLink, ...(verKinesiologos ? s.navLinkActive : {}) }}
+            onClick={() => setVerKinesiologos(v => !v)}
+          >
+            <IconClipboard /> {verKinesiologos ? 'Ocultar kinesiólogos' : 'Ver kinesiólogos registrados'}
+          </button>
+
+          <button style={s.navLink} onClick={abrirModalKine}>
+            <IconUserPlus /> Registrar kinesiólogo
+          </button>
+
+          <button style={s.navLink} onClick={abrirModalBaja}>
+            <IconUserX /> Dar de baja usuario
+          </button>
+
+          <button
+            style={{ ...s.navLink, ...(vista === 'quejas' ? s.navLinkActive : {}) }}
             onClick={() => {
-              setVista('quejas')
+              setVista(v => (v === 'quejas' ? 'principal' : 'quejas'))
               cargarQuejas()
             }}
           >
-            Ver listado de quejas
+            <IconMessage /> Ver listado de quejas
           </button>
-        </div>
+        </nav>
+      </header>
 
+      <main style={s.main}>
         {verClientes && <Clientes />}
 
         {/* ── Panel kinesiólogos ── */}
-        <div style={s.panelBuscar}>
-          <span style={s.panelPrecioLabel}>Kinesiólogos</span>
-          <Kinesiologos />
-        </div>
+        {verKinesiologos && (
+          <div style={s.panelBuscar}>
+            <span style={s.panelPrecioLabel}>Kinesiólogos</span>
+            <Kinesiologos />
+          </div>
+        )}
 
         {/* ── Panel precio ── */}
         <div style={s.panelPrecio}>
@@ -625,7 +707,8 @@ export default function AdminPage() {
 
 const s = {
   page:     { minHeight: '100vh', background: '#f5f6f7' },
-  header:   { background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '0 2rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  header:   { background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '12px 2rem', display: 'flex', flexDirection: 'column', gap: 10 },
+  headerTopRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   logoWrap: { display: 'flex', alignItems: 'center', gap: 4 },
   logoK:    { fontSize: 22, fontWeight: 700, color: '#2d6a2d' },
   logoRest: { fontSize: 22, fontWeight: 700, color: '#1a1a1a', letterSpacing: 1 },
@@ -633,28 +716,35 @@ const s = {
   btnLogout:{ padding: '7px 16px', borderRadius: 8, border: '1px solid #ddd', background: 'transparent', fontSize: 13, cursor: 'pointer', color: '#555' },
 
   main:     { padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' },
-  btnRow:   { display: 'flex', gap: 10 },
-  btnPagoEfectivo: {
-    padding: '9px 20px',
+
+  // ── Nav del header (acciones de administrador) ──
+  headerNav: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    flexWrap: 'wrap',
+    paddingTop: 10,
+    borderTop: '1px solid #eee',
+  },
+  navLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 12px',
     borderRadius: 8,
-    border: '1px solid #2563eb',
-    background: '#10182b',
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 600,
+    border: '1px solid transparent',
+    background: 'transparent',
+    color: '#444',
+    fontSize: 13.5,
+    fontWeight: 500,
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
-  btnToggle:       { padding: '9px 20px', borderRadius: 8, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnToggleActive: { background: '#2d6a2d', color: '#fff' },
-
-  btnRegistrarKine: {
-    padding: '9px 20px', borderRadius: 8, border: 'none',
-    background: '#2d6a2d', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-  },
-
-  btnBaja: {
-    padding: '9px 20px', borderRadius: 8, border: '1px solid #c0392b',
-    background: 'transparent', color: '#c0392b', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+  navLinkActive: {
+    background: '#eef7ee',
+    border: '1px solid #cfe8cf',
+    color: '#2d6a2d',
+    fontWeight: 600,
   },
 
   btnBajaConfirmar: {
