@@ -50,6 +50,9 @@ class Reserva(models.Model):
     )
 
     asistio = models.BooleanField(default=False)
+    cubierta_por_abono = models.BooleanField(default=False)
+    cancelacion_tardia = models.BooleanField(default=False)
+    fecha_cancelacion = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f'{self.paciente} - {self.clase}'

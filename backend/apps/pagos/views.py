@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from dateutil.relativedelta import relativedelta
+from calendar import monthrange
 from .models import PagoCuota
 from .models import ConfiguracionCuota
 from .serializers import PagoCuotaSerializer
@@ -449,19 +450,13 @@ def primer_dia_mes_actual():
 def periodo_cuota_para_fecha(hoy=None):
     hoy = hoy or date.today()
     config = ConfiguracionCuota.actual()
+    ultimo_dia_mes = monthrange(hoy.year, hoy.month)[1]
+    dia_fin = min(config.dia_fin_pago, ultimo_dia_mes)
 
-    if not (1 <= config.dia_inicio_pago <= 31 and 1 <= config.dia_fin_pago <= 31):
+    if not (1 <= config.dia_fin_pago <= ultimo_dia_mes):
         return None
 
-    if config.dia_inicio_pago > config.dia_fin_pago:
-        if hoy.day >= config.dia_inicio_pago:
-            periodo = hoy + relativedelta(months=1)
-            return date(periodo.year, periodo.month, 1)
-        if hoy.day <= config.dia_fin_pago:
-            return date(hoy.year, hoy.month, 1)
-        return None
-
-    if config.dia_inicio_pago <= hoy.day <= config.dia_fin_pago:
+    if 1 <= hoy.day <= dia_fin:
         return date(hoy.year, hoy.month, 1)
 
     return None
@@ -484,7 +479,7 @@ class IniciarPagoCuotaView(APIView):
                 {
                     'error': (
                         f'Solo se puede pagar la cuota entre los dias '
-                        f'{config.dia_inicio_pago} y {config.dia_fin_pago}.'
+                        f'1 y {config.dia_fin_pago}.'
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -661,7 +656,7 @@ class PagarCuotaEfectivoView(APIView):
                 {
                     'error': (
                         f'Solo se puede pagar la cuota entre los dias '
-                        f'{config.dia_inicio_pago} y {config.dia_fin_pago}.'
+                        f'1 y {config.dia_fin_pago}.'
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -705,7 +700,7 @@ class ConfiguracionCuotaView(APIView):
     def get(self, request):
         config = ConfiguracionCuota.actual()
         return Response({
-            'dia_inicio_pago': config.dia_inicio_pago,
+            'dia_inicio_pago': 1,
             'dia_fin_pago': config.dia_fin_pago,
         })
 
@@ -713,21 +708,26 @@ class ConfiguracionCuotaView(APIView):
         config = ConfiguracionCuota.actual()
 
         try:
-            dia_inicio = int(request.data.get('dia_inicio_pago'))
             dia_fin = int(request.data.get('dia_fin_pago'))
         except (TypeError, ValueError):
-            return Response({'error': 'Los dias deben ser numeros.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'El dia limite debe ser un numero.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not (1 <= dia_inicio <= 31 and 1 <= dia_fin <= 31):
-            return Response({'error': 'Los dias deben estar entre 1 y 31.'}, status=status.HTTP_400_BAD_REQUEST)
+        hoy = date.today()
+        ultimo_dia_mes = monthrange(hoy.year, hoy.month)[1]
 
-        config.dia_inicio_pago = dia_inicio
+        if not (1 <= dia_fin <= ultimo_dia_mes):
+            return Response(
+                {'error': f'El dia limite debe estar entre 1 y {ultimo_dia_mes} para este mes.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        config.dia_inicio_pago = 1
         config.dia_fin_pago = dia_fin
         config.save()
 
         return Response({
             'mensaje': 'Configuracion de cuota actualizada correctamente.',
-            'dia_inicio_pago': config.dia_inicio_pago,
+            'dia_inicio_pago': 1,
             'dia_fin_pago': config.dia_fin_pago,
         })
 # ──────────────────────────────────────────────────────────────────────────

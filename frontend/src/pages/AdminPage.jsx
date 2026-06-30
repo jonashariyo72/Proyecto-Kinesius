@@ -19,9 +19,9 @@ export default function AdminPage() {
   const [quejas, setQuejas] = useState([])
   const [loadingQuejas, setLoadingQuejas] = useState(false)
   const [vista, setVista] = useState('principal')
-  const [configCuota, setConfigCuota] = useState({ dia_inicio_pago: 25, dia_fin_pago: 18 })
+  const [configCuota, setConfigCuota] = useState({ dia_inicio_pago: 1, dia_fin_pago: 18 })
   const [editandoCuota, setEditandoCuota] = useState(false)
-  const [cuotaForm, setCuotaForm] = useState({ dia_inicio_pago: 25, dia_fin_pago: 18 })
+  const [cuotaForm, setCuotaForm] = useState({ dia_inicio_pago: 1, dia_fin_pago: 18 })
   const [cuotaMsg, setCuotaMsg] = useState('')
   const [cuotaError, setCuotaError] = useState('')
 
@@ -46,6 +46,11 @@ export default function AdminPage() {
   const [kineError, setKineError] = useState('')
   const [kineOk, setKineOk]       = useState('')
   const [kineLoading, setKineLoading] = useState(false)
+  const diasDelMesActual = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() + 1,
+    0
+  ).getDate()
 
   const handleLogout = () => {
     logout()
@@ -93,7 +98,6 @@ export default function AdminPage() {
           'Authorization': `Bearer ${access}`,
         },
         body: JSON.stringify({
-          dia_inicio_pago: cuotaForm.dia_inicio_pago,
           dia_fin_pago: cuotaForm.dia_fin_pago,
         }),
       })
@@ -106,11 +110,11 @@ export default function AdminPage() {
       }
 
       setConfigCuota({
-        dia_inicio_pago: data.dia_inicio_pago,
+        dia_inicio_pago: 1,
         dia_fin_pago: data.dia_fin_pago,
       })
       setCuotaForm({
-        dia_inicio_pago: data.dia_inicio_pago,
+        dia_inicio_pago: 1,
         dia_fin_pago: data.dia_fin_pago,
       })
       setEditandoCuota(false)
@@ -332,30 +336,23 @@ export default function AdminPage() {
             <span style={s.panelPrecioLabel}>Periodo de pago de cuota</span>
             {!editandoCuota ? (
               <span style={s.panelPrecioValor}>
-                Dia {configCuota.dia_inicio_pago} al {configCuota.dia_fin_pago}
+                Dia 1 al {configCuota.dia_fin_pago}
               </span>
             ) : (
               <div style={s.cuotaInputs}>
+                <span style={s.panelPrecioValor}>Dia 1 al</span>
                 <input
                   style={s.panelPrecioInput}
                   type="number"
                   min={1}
-                  max={31}
-                  value={cuotaForm.dia_inicio_pago}
-                  onChange={e => setCuotaForm(f => ({ ...f, dia_inicio_pago: e.target.value }))}
-                />
-                <input
-                  style={s.panelPrecioInput}
-                  type="number"
-                  min={1}
-                  max={31}
+                  max={diasDelMesActual}
                   value={cuotaForm.dia_fin_pago}
                   onChange={e => setCuotaForm(f => ({ ...f, dia_fin_pago: e.target.value }))}
                 />
               </div>
             )}
             <span style={s.panelAyuda}>
-              
+              Los clientes pueden pagar la cuota mensual desde el dia 1 hasta el limite definido.
             </span>
             {cuotaMsg && <span style={s.msgInlineOk}>{cuotaMsg}</span>}
             {cuotaError && <span style={s.msgInlineError}>{cuotaError}</span>}

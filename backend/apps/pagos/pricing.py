@@ -36,17 +36,33 @@ def contar_clases_abonadas_en_periodo(cliente, fecha_clase, reserva_actual=None)
     inicio = periodo_abono_para(fecha_clase)
     fin = inicio + relativedelta(months=1)
 
-    reservas = Reserva.objects.filter(
+    reservas_confirmadas = Reserva.objects.filter(
         paciente=cliente,
         estado='CONFIRMADA',
+        cubierta_por_abono=True,
         clase__fecha_clase__gte=inicio,
         clase__fecha_clase__lt=fin,
     )
 
     if reserva_actual and reserva_actual.pk:
-        reservas = reservas.exclude(pk=reserva_actual.pk)
+        reservas_confirmadas = reservas_confirmadas.exclude(pk=reserva_actual.pk)
 
-    return reservas.count()
+    return reservas_confirmadas.count()
+
+
+def contar_cancelaciones_tardias_en_periodo(cliente, fecha_clase):
+    from apps.reservas.models import Reserva
+
+    inicio = periodo_abono_para(fecha_clase)
+    fin = inicio + relativedelta(months=1)
+
+    return Reserva.objects.filter(
+        paciente=cliente,
+        estado='CANCELADA',
+        cancelacion_tardia=True,
+        clase__fecha_clase__gte=inicio,
+        clase__fecha_clase__lt=fin,
+    ).count()
 
 
 def calcular_monto_total_reserva(reserva):
@@ -60,5 +76,8 @@ def calcular_monto_total_reserva(reserva):
     clases_usadas = contar_clases_abonadas_en_periodo(cliente, fecha_clase, reserva)
     if clases_usadas < CLASES_INCLUIDAS_ABONO:
         return Decimal('0.00')
+
+    if contar_cancelaciones_tardias_en_periodo(cliente, fecha_clase) >= 3:
+        return precio.quantize(Decimal('0.01'))
 
     return (precio * MULTIPLICADOR_ABONADO).quantize(Decimal('0.01'))

@@ -120,7 +120,7 @@ class PagoCuota(models.Model):
 
 
 class ConfiguracionCuota(models.Model):
-        dia_inicio_pago = models.PositiveSmallIntegerField(default=25)
+        dia_inicio_pago = models.PositiveSmallIntegerField(default=1)
         dia_fin_pago = models.PositiveSmallIntegerField(default=18)
         actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -128,7 +128,7 @@ class ConfiguracionCuota(models.Model):
             verbose_name = 'Configuracion de Cuota'
 
         def __str__(self):
-            return f'Cuota: del dia {self.dia_inicio_pago} al {self.dia_fin_pago}'
+            return f'Cuota: del dia 1 al {self.dia_fin_pago}'
 
         @classmethod
         def actual(cls):

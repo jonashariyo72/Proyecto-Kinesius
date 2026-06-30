@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
             name='ConfiguracionCuota',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('dia_inicio_pago', models.PositiveSmallIntegerField(default=25)),
+                ('dia_inicio_pago', models.PositiveSmallIntegerField(default=1)),
                 ('dia_fin_pago', models.PositiveSmallIntegerField(default=18)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
             ],

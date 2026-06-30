@@ -314,9 +314,15 @@ export default function ClientePage() {
 
   const confirmarCancelacion = async (reservaId) => {
     try {
-      await api.post(`/reservas/gestion/${reservaId}/cancelar_reserva/`)
+      const res = await api.post(`/reservas/gestion/${reservaId}/cancelar_reserva/`)
       setModalCancelar(null)
-      mostrarToast('Reserva cancelada. El saldo a favor fue registrado.')
+      if (res.data.tipo_devolucion === 'cupo') {
+        mostrarToast('Reserva cancelada. Se devolvio el cupo de tu abono.')
+      } else if (res.data.tipo_devolucion === 'saldo') {
+        mostrarToast('Reserva cancelada. El importe fue registrado como saldo a favor.')
+      } else {
+        mostrarToast('Reserva cancelada correctamente.')
+      }
       cargarReservas()
     } catch {
       mostrarToast('❌ No se pudo cancelar la reserva.')
