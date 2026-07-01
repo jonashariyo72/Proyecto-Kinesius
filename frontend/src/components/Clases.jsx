@@ -640,6 +640,8 @@ const s = {
   btnBuscarCliente: { flex: 1, minWidth: 0, padding: '7px', borderRadius: 7, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, lineHeight: 1.15, cursor: 'pointer', fontWeight: 600 },
   btnTerminarClase: { flex: 1, minWidth: 0, padding: '7px', borderRadius: 7, border: 'none', background: '#c0392b', color: '#fff', fontSize: 13, lineHeight: 1.15, cursor: 'pointer', fontWeight: 700 },
   btnEliminar: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e74c3c', background: 'transparent', color: '#e74c3c', fontSize: 13, cursor: 'pointer' },
+  btnEditar: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #0a690acb', background: 'transparent', color: '#0a690acb', fontSize: 13, cursor: 'pointer' },
+
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   modal: { background: '#fff', borderRadius: 14, padding: '2rem', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' },
   modalTitulo: { fontSize: 18, fontWeight: 700, margin: '0 0 1.2rem', color: '#1a1a1a' },
