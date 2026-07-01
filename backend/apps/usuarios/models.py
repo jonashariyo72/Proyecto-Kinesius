@@ -101,6 +101,11 @@ class Cliente(models.Model):
     es_abonado       = models.BooleanField(default=False)
     fecha_venc_cuota = models.DateField(blank=True, null=True)
 
+    fecha_alta_abonado = models.DateField(
+        null=True,
+        blank=True
+    )
+
     # Suspensión
     suspendido       = models.BooleanField(default=False)
     fecha_suspension = models.DateField(blank=True, null=True)
