@@ -50,11 +50,10 @@ class Reserva(models.Model):
     )
 
     asistio = models.BooleanField(default=False)
-<<<<<<< HEAD
     cubierta_por_abono = models.BooleanField(default=False)
     cancelacion_tardia = models.BooleanField(default=False)
     fecha_cancelacion = models.DateTimeField(blank=True, null=True)
-=======
+
     METODO_ASISTENCIA = (
         ('QR', 'QR'),
         ('MANUAL', 'Manual'),
@@ -68,7 +67,6 @@ class Reserva(models.Model):
     )
 
     fecha_asistencia = models.DateTimeField(null=True, blank=True)
->>>>>>> 0d6af8c810d68382f85e2aad91cc643dba62c039
 
     def __str__(self):
         return f'{self.paciente} - {self.clase}'
