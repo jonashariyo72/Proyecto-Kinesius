@@ -45,6 +45,17 @@ const FORM_VACIO = {
   descripcion: '',
 }
 
+const nombreKinesiologo = k => {
+  const nombre = k.nombre ?? ''
+  const apellido = k.apellido ?? ''
+
+  if (!apellido || nombre.toLowerCase().includes(apellido.toLowerCase())) {
+    return nombre.trim()
+  }
+
+  return `${nombre} ${apellido}`.trim()
+}
+
 export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, modoKinesiologo = false, kineId = null }) {
   const [modalListaEspera, setModalListaEspera]   = useState(null)
   const [modalInscriptos, setModalInscriptos]     = useState(null)
@@ -240,6 +251,33 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
   }
 }
 
+  const claseEnCurso = clase => {
+    if (!clase.fecha_clase || !clase.hora_inicio || clase.finalizada) return false
+
+    const inicio = new Date(`${clase.fecha_clase}T${clase.hora_inicio}`)
+    const fin = new Date(inicio.getTime() + Number(clase.duracion_minutos || 60) * 60000)
+    const ahora = new Date()
+
+    return ahora >= inicio && ahora <= fin
+  }
+
+  const terminarClase = async clase => {
+    try {
+      const { data } = await api.post(`/clases/${clase.id}/terminar/`)
+      const cantidad = data.cantidad_suspendidos ?? 0
+      setToast(
+        cantidad > 0
+          ? `Clase finalizada. ${cantidad} cliente${cantidad !== 1 ? 's' : ''} suspendido${cantidad !== 1 ? 's' : ''}.`
+          : 'Clase finalizada. Todos registraron asistencia.'
+      )
+      setTimeout(() => setToast(''), 3500)
+      cargar()
+    } catch (err) {
+      setToast(err.response?.data?.error || 'No se pudo terminar la clase.')
+      setTimeout(() => setToast(''), 3500)
+    }
+  }
+
   return (
     <div>
       {toast && <div style={s.toast}>{toast}</div>}
@@ -265,7 +303,7 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
           {!modoKinesiologo && (
             <select style={s.select} value={filtroKinesiologo} onChange={e => setFiltroKinesiologo(e.target.value)}>
               <option value="">Todos los kinesiólogos</option>
-              {kinesiologos.map(k => <option key={k.id} value={k.id}>{k.nombre}</option>)}
+              {kinesiologos.map(k => <option key={k.id} value={k.id}>{nombreKinesiologo(k)}</option>)}
             </select>
           )}
           {!modoKinesiologo && (
@@ -325,7 +363,7 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
 
           {/* Botones para Kinesiólogo */}
           {c.activa && modoKinesiologo && (
-            <div style={s.acciones}>
+            <div style={s.accionesKinesiologo}>
               <button style={s.btnVerInscriptos} onClick={() => setModalInscriptos(c)}>
                 Ver inscriptos
               </button>
@@ -341,6 +379,11 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
               >
                 Generar QR
               </button>
+              {claseEnCurso(c) && (
+                <button style={s.btnTerminarClase} onClick={() => terminarClase(c)}>
+                  Terminar clase
+                </button>
+              )}
             </div>
           )}
           </div>
@@ -384,10 +427,12 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
               </div>
               <div style={s.campo}>
                 <label style={s.label}>Hora de inicio</label>
-                <select style={s.input} value={form.hora_inicio} onChange={e => setForm({ ...form, hora_inicio: e.target.value })}>
-                  <option value="">Sin asignar</option>
-                  {HORARIOS.map(h => <option key={h} value={h}>{h} hs</option>)}
-                </select>
+                <input
+                  style={s.input}
+                  type="time"
+                  value={form.hora_inicio}
+                  onChange={e => setForm({ ...form, hora_inicio: e.target.value })}
+                />
               </div>
               <div style={s.campo}>
                 <label style={s.label}>Capacidad máxima</label>
@@ -405,7 +450,7 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
                 <label style={s.label}>Kinesiólogo</label>
                 <select style={s.input} value={form.kinesiologo} onChange={e => setForm({ ...form, kinesiologo: e.target.value })}>
                   <option value="">Sin asignar</option>
-                  {kinesiologos.map(k => <option key={k.id} value={k.id}>{k.nombre}</option>)}
+                  {kinesiologos.map(k => <option key={k.id} value={k.id}>{nombreKinesiologo(k)}</option>)}
                 </select>
               </div>
               <div style={s.campo}>
@@ -567,7 +612,7 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
 }
 
 const s = {
-  btnLista: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #c8a000', background: 'transparent', color: '#c8a000', fontSize: 13, cursor: 'pointer' },
+  btnLista: { flex: 1, minWidth: 0, padding: '7px', borderRadius: 7, border: '1px solid #c8a000', background: 'transparent', color: '#c8a000', fontSize: 13, lineHeight: 1.15, cursor: 'pointer' },
   toast: { position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', color: '#fff', padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 500, zIndex: 999, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: 12 },
   topRight: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
@@ -590,8 +635,10 @@ const s = {
   llena: { fontSize: 11, fontWeight: 700, color: '#c0392b', background: '#fdecea', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
   inactiva: { fontSize: 11, fontWeight: 700, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
   acciones: { display: 'flex', gap: 8, marginTop: 4 },
-  btnVerInscriptos: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
-  btnBuscarCliente: { flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
+  accionesKinesiologo: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 },
+  btnVerInscriptos: { flex: 1, minWidth: 0, padding: '7px', borderRadius: 7, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, lineHeight: 1.15, cursor: 'pointer', fontWeight: 600 },
+  btnBuscarCliente: { flex: 1, minWidth: 0, padding: '7px', borderRadius: 7, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, lineHeight: 1.15, cursor: 'pointer', fontWeight: 600 },
+  btnTerminarClase: { flex: 1, minWidth: 0, padding: '7px', borderRadius: 7, border: 'none', background: '#c0392b', color: '#fff', fontSize: 13, lineHeight: 1.15, cursor: 'pointer', fontWeight: 700 },
   btnEliminar: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e74c3c', background: 'transparent', color: '#e74c3c', fontSize: 13, cursor: 'pointer' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   modal: { background: '#fff', borderRadius: 14, padding: '2rem', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' },

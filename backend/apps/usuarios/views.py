@@ -185,6 +185,14 @@ class LoginView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
+            if user.cliente.suspendido:
+                return Response(
+                    {
+                        'error': 'Tu cuenta se encuentra suspendida. Debes presentarte presencialmente en el centro para regularizar tu situacion.'
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             return Response(
                 {
                     **get_tokens(user),
@@ -296,7 +304,7 @@ class ListaKinesiologosView(APIView):
         data = [
             {
                 'id':              k.id,
-                'nombre':          k.usuario.nombre,
+                'nombre':          f'{k.usuario.nombre} {k.usuario.apellido}',
                 'apellido':        k.usuario.apellido,
                 'dni':             k.usuario.dni,
                 'email':           k.usuario.email,
