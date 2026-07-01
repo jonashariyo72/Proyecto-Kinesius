@@ -15,7 +15,8 @@ class ClaseSerializer(serializers.ModelSerializer):
             'id', 'tipo', 'descripcion', 'dia', 'fecha_clase', 'hora_inicio',
             'duracion_minutos', 'capacidad_maxima', 'precio', 'activa',
             'kinesiologo', 'kinesiologo_nombre', 'kinesiologo_email',
-            'cupos_disponibles', 'tiene_cupo', 'sala',
+            'cupos_disponibles', 'tiene_cupo', 'sala', 'finalizada',
+            'fecha_finalizacion',
         ]
 
     def get_cupos_disponibles(self, obj):

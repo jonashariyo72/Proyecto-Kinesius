@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from django.utils import timezone
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
@@ -120,6 +120,78 @@ class ClaseViewSet(viewsets.ModelViewSet):
                 'detail':
                 f'Clase desactivada. '
                 f'{devueltas} devoluciones procesadas.'
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=['post'], url_path='terminar')
+    def terminar_clase(self, request, pk=None):
+        clase = self.get_object()
+        user = request.user
+        es_admin = hasattr(user, 'administrador')
+        es_kinesiologo_asignado = (
+            hasattr(user, 'kinesiologo') and
+            clase.kinesiologo == user.kinesiologo
+        )
+
+        if not es_admin and not es_kinesiologo_asignado:
+            return Response(
+                {'error': 'No tenes permisos para terminar esta clase.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if clase.finalizada:
+            return Response(
+                {'error': 'Esta clase ya fue finalizada.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not clase.fecha_clase:
+            return Response(
+                {'error': 'La clase no tiene fecha asignada.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        inicio = timezone.make_aware(datetime.combine(clase.fecha_clase, clase.hora_inicio))
+        fin = inicio + timedelta(minutes=clase.duracion_minutos)
+        ahora = timezone.now()
+
+        if not (inicio <= ahora <= fin):
+            return Response(
+                {'error': 'Solo se puede terminar una clase mientras esta en curso.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        reservas_ausentes = Reserva.objects.filter(
+            clase=clase,
+            estado='CONFIRMADA',
+            asistio=False,
+        ).select_related('paciente__usuario')
+
+        suspendidos = []
+        for reserva in reservas_ausentes:
+            cliente = reserva.paciente
+            if not cliente.suspendido:
+                cliente.suspendido = True
+                cliente.fecha_suspension = ahora.date()
+                cliente.save()
+
+            suspendidos.append({
+                'cliente_id': cliente.id,
+                'nombre': cliente.usuario.nombre,
+                'apellido': cliente.usuario.apellido,
+                'email': cliente.usuario.email,
+            })
+
+        clase.finalizada = True
+        clase.fecha_finalizacion = ahora
+        clase.save()
+
+        return Response(
+            {
+                'mensaje': 'Clase finalizada correctamente.',
+                'suspendidos': suspendidos,
+                'cantidad_suspendidos': len(suspendidos),
             },
             status=status.HTTP_200_OK
         )

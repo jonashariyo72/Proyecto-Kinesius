@@ -29,6 +29,8 @@ class Clase(models.Model):
     precio           = models.DecimalField(max_digits=10, decimal_places=2)
     activa           = models.BooleanField(default=True)
     sala             = models.PositiveIntegerField(null=True, blank=True)
+    finalizada       = models.BooleanField(default=False)
+    fecha_finalizacion = models.DateTimeField(blank=True, null=True)
 
     kinesiologo = models.ForeignKey(
         Kinesiologo,
