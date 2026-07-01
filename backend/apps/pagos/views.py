@@ -788,10 +788,14 @@ class ListaSaldosPendientesView(APIView):
         except Cliente.DoesNotExist:
             return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        from django.utils import timezone
+
         pagos_con_saldo = PagoReserva.objects.filter(
             cliente=cliente,
             estado='aprobado',
-            tipo_pago='sena',  # solo quienes pagaron seña deben el resto
+            tipo_pago='sena',
+            reserva__clase__fecha_clase__gte=timezone.now().date(),  # solo clases futuras o de hoy
+            reserva__clase__activa=True, 
         ).select_related('reserva__clase').order_by('reserva__clase__fecha_clase', 'reserva__clase__hora_inicio')
 
         data = []

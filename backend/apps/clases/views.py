@@ -14,7 +14,7 @@ import base64
 import qrcode
 import uuid
 import io
-
+from django.db.models import Q
 
 class ClaseViewSet(viewsets.ModelViewSet):
     """
@@ -46,16 +46,24 @@ class ClaseViewSet(viewsets.ModelViewSet):
                 kinesiologo=user.kinesiologo
             )
 
-        # CLIENTE
+         # CLIENTE
         if hasattr(user, 'cliente'):
-            hoy = date.today()
+            ahora = timezone.localtime()
+            hoy = ahora.date()
+            hora_actual = ahora.time()
             limite = hoy + timedelta(days=7)
 
             return Clase.objects.filter(
                 activa=True,
                 fecha_clase__gte=hoy,
                 fecha_clase__lte=limite
-            ).order_by('fecha_clase', 'hora_inicio')
+            ).filter(
+                Q(fecha_clase__gt=hoy) |
+                Q(fecha_clase=hoy, hora_inicio__gt=hora_actual)
+            ).order_by(
+                'fecha_clase',
+                'hora_inicio'
+            )
 
         # ADMIN
         return Clase.objects.all().order_by(
