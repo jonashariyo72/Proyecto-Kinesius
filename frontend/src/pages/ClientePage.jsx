@@ -178,7 +178,7 @@ function ModalListaEspera({ clase, pacienteId, onCerrar }) {
 export default function ClientePage() {
   const { logout } = useAuth()
   const navigate   = useNavigate()
-
+  const [estaSuspendido, setEstaSuspendido] = useState(false)
   const [seccion, setSeccion]         = useState('clases')
   const [clases, setClases]           = useState([])
   const [misReservas, setMisReservas] = useState([])
@@ -206,20 +206,7 @@ export default function ClientePage() {
     setTimeout(() => setToast(''), 3500)
   }
 
-  useEffect(() => {
-    api.get('/usuarios/perfil/')
-      .then(res => {
-        setPacienteId(res.data.id)
-        setNombreUsuario(
-          res.data.nombre ||
-          res.data.usuario?.nombre ||
-          res.data.user?.nombre ||
-          res.data.cliente?.usuario?.nombre ||
-          res.data.email?.split('@')[0] || ''
-        )
-      })
-      .catch(() => {})
-  }, [])
+
 
   useEffect(() => {
     api.get('/usuarios/kinesiologos/')
@@ -267,6 +254,7 @@ export default function ClientePage() {
     .then(res => {
       setPacienteId(res.data.id)
       setEsAbonado(res.data.es_abonado)
+      setEstaSuspendido(res.data.suspendido)
       setNombreUsuario(
         res.data.nombre ||
         res.data.usuario?.nombre ||
@@ -274,6 +262,7 @@ export default function ClientePage() {
         res.data.cliente?.usuario?.nombre ||
         res.data.email?.split('@')[0] || ''
       )
+      
     })
     .catch(() => {})
   }, [])
@@ -434,6 +423,9 @@ export default function ClientePage() {
           {esAbonado && (
            <span style={s.badgeAbonado}>Abonado</span>
            )}
+           {estaSuspendido && (
+  <span style={s.badgeSuspendido}>Suspendido</span>
+)}
         </div>
         <nav style={s.nav}>
           <button
@@ -724,6 +716,16 @@ export default function ClientePage() {
 }
 
 const s = {
+  badgeSuspendido: {
+  marginLeft: 8,
+  fontSize: 11,
+  fontWeight: 700,
+  background: '#fdecea',
+  color: '#c0392b',
+  padding: '3px 10px',
+  borderRadius: 20,
+  border: '1px solid #f5b7b1',
+},
   page:    { minHeight: '100vh', background: '#f5f6f7', fontFamily: 'sans-serif' },
   header:  {
     background: '#fff', borderBottom: '1px solid #e5e5e5',

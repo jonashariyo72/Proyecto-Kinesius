@@ -75,7 +75,7 @@ class PagoCuota(models.Model):
  
         METODO_PAGO_CHOICES = [
             ('mercadopago', 'Mercado Pago'),
-            ('efectivo',    'Efectivo'),
+            ('tarjeta',    'Tarjeta'),
         ]
     
         ESTADO_CHOICES = [
