@@ -16,6 +16,7 @@ import PagoListaEsperaPage from './pages/PagoListaEsperaPage'
 
 import { PagoExitoso, PagoFallido, PagoPendiente } from './pages/PagoRetornoPages'
 import KinesiologoPage from './pages/KinesiologoPage'
+import EstadisticasPage from './pages/EstadisticasPage'
 
 // Redirige según el rol al entrar a "/dashboard"
 function RutaInicio() {
@@ -54,6 +55,15 @@ export default function App() {
               <AdminPage />
             </RutaProtegida>
           } />
+
+          <Route
+              path="/estadisticas"
+              element={
+                  <RutaProtegida rolRequerido="administrador">
+                      <EstadisticasPage />
+                  </RutaProtegida>
+              }
+          />
 
          <Route path="/kinesiologo" element={
             <RutaProtegida rolRequerido="kinesiologo">

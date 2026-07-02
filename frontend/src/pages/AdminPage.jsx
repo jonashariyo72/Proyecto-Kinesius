@@ -6,6 +6,7 @@ import Clientes from '../components/Clientes'
 import Kinesiologos from '../components/Kinesiologos'
 import { obtenerQuejas } from '../services/quejaService'
 import ModalPagoEfectivo from '../components/PagoEfectivo'
+
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 const iconProps = {
@@ -352,6 +353,13 @@ export default function AdminPage() {
             }}
           >
             <IconMessage /> Ver listado de quejas
+          </button>
+
+          <button
+              className="btn btn-primary"
+              onClick={() => navigate("/estadisticas")}
+          >
+              Estadísticas
           </button>
         </nav>
       </header>

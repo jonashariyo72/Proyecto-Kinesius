@@ -812,6 +812,118 @@ class BuscarClienteKinesiologoView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+# HU: Filtrar listado y estadísticas de clientes por abonado/asistencia
+# GET /usuarios/clientes/filtrar/?estado_pago=abonado&asistencia=asistio&fecha=2026-03-19
+
+class ClientesFiltradosView(APIView):
+    """
+    Filtra clientes por estado de pago (abonado / no_abonado) y/o por
+    asistencia en una fecha determinada (asistio / no_asistio).
+
+    Query params (todos opcionales, se pueden combinar):
+      - estado_pago: 'abonado' | 'no_abonado'
+      - asistencia:  'asistio'  | 'no_asistio'   (requiere 'fecha')
+      - fecha:       'YYYY-MM-DD'
+    """
+    permission_classes = [EsAdministrador]
+
+    def get(self, request):
+        from datetime import datetime
+        from apps.reservas.models import Reserva
+
+        estado_pago = request.query_params.get('estado_pago')
+        asistencia  = request.query_params.get('asistencia')
+        fecha_str   = request.query_params.get('fecha')
+
+        clientes = Cliente.objects.select_related('usuario').filter(
+            usuario__is_active=True
+        )
+
+        # --- Escenario 1: filtro por abonado / no abonado ---
+        if estado_pago == 'abonado':
+            clientes = clientes.filter(es_abonado=True)
+        elif estado_pago == 'no_abonado':
+            clientes = clientes.filter(es_abonado=False)
+        elif estado_pago is not None:
+            return Response(
+                {'error': 'El filtro de estado de pago debe ser "abonado" o "no_abonado".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # --- Escenario 2: filtro por asistencia/inasistencia en una fecha ---
+        if asistencia is not None:
+            if asistencia not in ('asistio', 'no_asistio'):
+                return Response(
+                    {'error': 'El filtro de asistencia debe ser "asistio" o "no_asistio".'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not fecha_str:
+                return Response(
+                    {'error': 'Debe ingresar una fecha para filtrar por asistencia.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'error': 'La fecha ingresada no es válida. Formato esperado: AAAA-MM-DD.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if asistencia == 'asistio':
+                clientes = clientes.filter(
+                    reservas__fecha_reserva__date=fecha,
+                    reservas__asistio=True,
+                    reservas__estado='CONFIRMADA',
+                ).distinct()
+            else:  # no_asistio
+                clientes = clientes.filter(
+                    reservas__fecha_reserva__date=fecha,
+                    reservas__asistio=False,
+                ).exclude(
+                    reservas__estado='CANCELADA'
+                ).distinct()
+
+        data = [
+            {
+                'id':                 c.id,
+                'nombre':             c.usuario.nombre,
+                'apellido':           c.usuario.apellido,
+                'dni':                c.usuario.dni,
+                'email':              c.usuario.email,
+                'telefono':           c.usuario.telefono or '',
+                'es_abonado':         c.es_abonado,
+                'fecha_venc_cuota':   str(c.fecha_venc_cuota) if c.fecha_venc_cuota else None,
+                'suspendido':         c.suspendido,
+                'cant_cancelaciones': c.cant_cancelaciones,
+            }
+            for c in clientes
+        ]
+
+        resumen = {
+            'total_clientes': len(data),
+            'abonados':       sum(1 for c in data if c['es_abonado']),
+            'no_abonados':    sum(1 for c in data if not c['es_abonado']),
+        }
+
+        if not data:
+            return Response(
+                {
+                    'mensaje': 'No hay resultados para el filtro seleccionado',
+                    'resumen': resumen,
+                    'clientes': data,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            {'resumen': resumen, 'clientes': data},
+            status=status.HTTP_200_OK
+        )
+
+
 class ListaClientesView(APIView):
     """
     GET /usuarios/clientes/
