@@ -29,11 +29,6 @@ const SALAS = [
   { id: 10, capacidad: 19 },
 ]
 
-const HORARIOS = [
-  '08:00', '09:00', '10:00', '11:00', '12:00',
-  '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
-]
-
 const FORM_VACIO = {
   tipo: '',
   fecha: null,
@@ -391,10 +386,12 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
               </div>
               <div style={s.campo}>
                 <label style={s.label}>Hora de inicio</label>
-                <select style={s.input} value={form.hora_inicio} onChange={e => setForm({ ...form, hora_inicio: e.target.value })}>
-                  <option value="">Sin asignar</option>
-                  {HORARIOS.map(h => <option key={h} value={h}>{h} hs</option>)}
-                </select>
+                <input
+                  style={s.input}
+                  type="time"
+                  value={form.hora_inicio}
+                  onChange={e => setForm({ ...form, hora_inicio: e.target.value })}
+                />
               </div>
               <div style={s.campo}>
                 <label style={s.label}>Capacidad máxima</label>
