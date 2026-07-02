@@ -457,7 +457,7 @@ export default function ClientePage() {
             }}
             onClick={() => setSeccion("historial")}
           >
-              Ver evolución
+              Ver ficha de evolución
           </button>
           <button
                 style={{ ...s.navBtn, ...(seccion === 'cuota' ? s.navActivo : {}) }}

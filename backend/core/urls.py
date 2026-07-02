@@ -10,5 +10,6 @@ urlpatterns = [
     path('api/notificaciones/', include('apps.notificaciones.urls')),
     path('api/', include('apps.quejas.urls')),
     path('api/evolucion/', include('apps.evolucion.urls')),
+    path("api/estadisticas/", include("apps.estadisticas.urls")),
 
 ]

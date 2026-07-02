@@ -71,7 +71,7 @@ export default function KinesiologoPage() {
           }}
           onClick={() => setVista("historial")}
         >
-          Ver evolución
+          Ver ficha de evolución
         </button>
       </div>
 
