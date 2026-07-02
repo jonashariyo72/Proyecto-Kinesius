@@ -244,7 +244,7 @@ class ClaseViewSet(viewsets.ModelViewSet):
     # HU#32 - Ver turnos del kinesiólogo autenticado
     @action(
         detail=False,
-        methods=['get'],
+        methods=['get'],    
         url_path='mis-clases'
     )
     def mis_clases(self, request):
@@ -303,12 +303,30 @@ class GenerarQRClaseView(APIView):
         )
 
         if not es_admin and not es_kinesiologo_asignado:
+                    return Response(
+                        {'error': 'No tiene permisos para generar el QR de esta clase'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+        # Verificar que la clase esté en curso
+        fecha_hora_inicio = timezone.make_aware(
+            datetime.combine(clase.fecha_clase, clase.hora_inicio)
+        )
+        fecha_hora_fin = fecha_hora_inicio + timedelta(hours=1)
+        ahora = timezone.now()
+
+        if ahora < fecha_hora_inicio:
             return Response(
-                {'error': 'No tiene permisos para generar el QR de esta clase'},
-                status=status.HTTP_403_FORBIDDEN
+                {'error': f'El QR se habilita a las {clase.hora_inicio.strftime("%H:%M")} hs cuando comience la clase.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if ahora > fecha_hora_fin:
+            return Response(
+                {'error': 'La clase ya terminó. No se puede generar el QR.'},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        # URL que va a abrir el celular al escanear
+                # URL que va a abrir el celular al escanear
         # En desarrollo usar la IP local o ngrok
         frontend_url = "https://choking-nursing-reveler.ngrok-free.dev"
         url_asistencia = f"http://172.20.10.13:5173/asistencia/qr/{clase.qr_token}/"
@@ -472,19 +490,7 @@ class AsistenciaManualView(APIView):
                     )
             except PagoReserva.DoesNotExist:
                 pass
-
-        # Bloquear asistencia si pagó seña y no completó el pago
-        if asistio:
-            from apps.pagos.models import PagoReserva
-            try:
-                pago = PagoReserva.objects.get(reserva=reserva)
-                if pago.tipo_pago == 'sena' and pago.saldo_pendiente > 0:
-                    return Response(
-                        {'error': 'El cliente tiene una seña pendiente de completar. No se puede marcar asistencia hasta que pague el resto.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            except PagoReserva.DoesNotExist:
-                pass
+            
         reserva.asistio = asistio
         reserva.metodo_asistencia = 'MANUAL'
         reserva.fecha_asistencia = timezone.now()
