@@ -130,8 +130,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # EMAIL_PORT = '2525'
 
 # Email (para notificaciones)
+#Si queres que lleguen los mails a mailtrap, descomenta la linea de abajo y comenta la linea 137
 #EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
 
 #SI NO LLEGAN MAILS ES PQ CAMBIE ESTO: LO CAMBIE YO, MANUEL HARO
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Para desarrollo: muestra emails en la consola
