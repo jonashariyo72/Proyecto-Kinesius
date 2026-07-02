@@ -28,6 +28,7 @@ export default function Clientes() {
     return (
       c.nombre.toLowerCase().includes(q)   ||
       c.apellido.toLowerCase().includes(q) ||
+      (`${c.nombre} ${c.apellido}`).toLowerCase().includes(q) ||
       c.dni.includes(q)                    ||
       c.email.toLowerCase().includes(q)
     )
@@ -45,7 +46,7 @@ export default function Clientes() {
         </div>
         <input
           style={s.search}
-          placeholder="Buscar por nombre, DNI o email…"
+          placeholder="Buscar por nombre, apellido o DNI…"
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
         />
@@ -61,7 +62,7 @@ export default function Clientes() {
           <table style={s.table}>
             <thead>
               <tr>
-                {['Nombre', 'DNI', 'Email', 'Teléfono', 'Abonado', 'Estado'].map(h => (
+                {['Nombre', 'DNI', 'Email', 'Abonado', 'Estado'].map(h => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -69,7 +70,7 @@ export default function Clientes() {
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#999' }}>
+                  <td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#999' }}>
                     No hay clientes registrados en el centro
                   </td>
                 </tr>
@@ -79,7 +80,6 @@ export default function Clientes() {
                     <td style={s.td}>{c.nombre} {c.apellido}</td>
                     <td style={s.td}>{c.dni}</td>
                     <td style={s.td}>{c.email}</td>
-                    <td style={s.td}>{c.telefono || '—'}</td>
                     <td style={s.td}>
                       <span style={c.es_abonado ? s.badgeOn : s.badgeOff}>
                         {c.es_abonado

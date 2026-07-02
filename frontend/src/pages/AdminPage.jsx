@@ -76,6 +76,16 @@ function IconMessage() {
   )
 }
 
+function IconChart() {
+  return (
+    <svg {...iconProps}>
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6"  y1="20" x2="6"  y2="14" />
+    </svg>
+  )
+}
+
 export default function AdminPage() {
   const { logout, access } = useAuth()
   const navigate          = useNavigate()
@@ -356,10 +366,10 @@ export default function AdminPage() {
           </button>
 
           <button
-              className="btn btn-primary"
-              onClick={() => navigate("/estadisticas")}
+            style={{ ...s.navLink, ...(vista === 'estadisticas' ? s.navLinkActive : {}) }}
+            onClick={() => navigate('/estadisticas')}
           >
-              Estadísticas
+            <IconChart /> Estadísticas
           </button>
         </nav>
       </header>

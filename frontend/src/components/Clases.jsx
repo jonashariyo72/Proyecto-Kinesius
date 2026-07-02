@@ -317,11 +317,15 @@ export default function Clases({ precioPorDefecto = 15000, refreshKines = 0, mod
 
             {/* Botones para Admin */}
             {c.activa && !modoKinesiologo && (
-              <div style={s.acciones}>
-                <button style={s.btnEditar}  onClick={() => abrirEditar(c)}>Editar</button>
-                <button style={s.btnEliminar} onClick={() => setModalEliminar(c)}>Eliminar</button>
-                <button style={s.btnLista}    onClick={() => setModalListaEspera(c)}>Lista de espera</button>
-                <button style={s.btnVerInscriptos} onClick={() => setModalInscriptos(c)}>Ver inscriptos</button>
+              <div style={s.accionesAdmin}>
+                <div style={s.acciones}>
+                  <button style={s.btnEditar}  onClick={() => abrirEditar(c)}>Editar</button>
+                  <button style={s.btnEliminar} onClick={() => setModalEliminar(c)}>Eliminar</button>
+                </div>
+                <div style={s.acciones}>
+                  <button style={s.btnLista}         onClick={() => setModalListaEspera(c)}>Lista de espera</button>
+                  <button style={s.btnVerInscriptos} onClick={() => setModalInscriptos(c)}>Ver inscriptos</button>
+                </div>
               </div>
             )}
 
@@ -593,10 +597,13 @@ const s = {
   precio: { fontSize: 14, fontWeight: 600, color: '#c8a000', margin: 0 },
   llena: { fontSize: 11, fontWeight: 700, color: '#c0392b', background: '#fdecea', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
   inactiva: { fontSize: 11, fontWeight: 700, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, alignSelf: 'flex-start' },
-  acciones: { display: 'flex', gap: 8, marginTop: 4 },
+  accionesAdmin: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
+  acciones: { display: 'flex', gap: 8 },
   btnVerInscriptos: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
   btnBuscarCliente: { flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 },
   btnEliminar: { flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e74c3c', background: 'transparent', color: '#e74c3c', fontSize: 13, cursor: 'pointer' },
+  btnEditar: { flex: 1, padding: '7px', borderRadius: 7, border: '0.5px solid #3c56e7', background: 'transparent', color: '#3c56e7', fontSize: 13, cursor: 'pointer' },
+
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   modal: { background: '#fff', borderRadius: 14, padding: '2rem', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' },
   modalTitulo: { fontSize: 18, fontWeight: 700, margin: '0 0 1.2rem', color: '#1a1a1a' },

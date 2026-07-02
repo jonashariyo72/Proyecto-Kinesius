@@ -65,7 +65,7 @@ export default function Kinesiologos() {
           <div style={s.buscadorRow}>
             <input
               style={s.input}
-              placeholder="Buscar por nombre o DNI..."
+              placeholder="Buscar por nombre, apellido o DNI..."
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && buscar()}

@@ -286,12 +286,14 @@ class ListaKinesiologosView(APIView):
             if es_dni:
                 kines = kines.filter(usuario__dni__icontains=query)
             else:
-                from django.db.models import Q as DQ
-                partes = query.split()
-                q_filter = DQ()
-                for parte in partes:
-                    q_filter |= DQ(usuario__nombre__icontains=parte) | DQ(usuario__apellido__icontains=parte)
-                kines = kines.filter(q_filter)
+                from django.db.models import Value, CharField
+                from django.db.models.functions import Concat
+                kines = kines.annotate(
+                    nombre_completo=Concat(
+                        'usuario__nombre', Value(' '), 'usuario__apellido',
+                        output_field=CharField()
+                    )
+                ).filter(nombre_completo__icontains=query)
 
             if not kines.exists():
                 mensaje = (
@@ -304,7 +306,7 @@ class ListaKinesiologosView(APIView):
         data = [
             {
                 'id':              k.id,
-                'nombre':          f'{k.usuario.nombre} {k.usuario.apellido}',
+                'nombre':          k.usuario.nombre,
                 'apellido':        k.usuario.apellido,
                 'dni':             k.usuario.dni,
                 'email':           k.usuario.email,
@@ -702,14 +704,15 @@ class BuscarClienteView(APIView):
                 usuario__is_active=True,
             )
         else:
-            from django.db.models import Q
-            partes = query.split()
-            q_filter = Q()
-            for parte in partes:
-                q_filter |= Q(usuario__nombre__icontains=parte) | Q(usuario__apellido__icontains=parte)
-
-            clientes = Cliente.objects.select_related('usuario').filter(
-                q_filter,
+            from django.db.models import Value, CharField
+            from django.db.models.functions import Concat
+            clientes = Cliente.objects.select_related('usuario').annotate(
+                nombre_completo=Concat(
+                    'usuario__nombre', Value(' '), 'usuario__apellido',
+                    output_field=CharField()
+                )
+            ).filter(
+                nombre_completo__icontains=query,
                 usuario__is_active=True,
             ).distinct()
 
@@ -780,11 +783,14 @@ class BuscarClienteKinesiologoView(APIView):
         if es_dni:
             clientes = clientes_base.filter(usuario__dni__icontains=query)
         else:
-            partes = query.split()
-            q_filter = Q()
-            for parte in partes:
-                q_filter |= Q(usuario__nombre__icontains=parte) | Q(usuario__apellido__icontains=parte)
-            clientes = clientes_base.filter(q_filter)
+            from django.db.models import Value, CharField
+            from django.db.models.functions import Concat
+            clientes = clientes_base.annotate(
+                nombre_completo=Concat(
+                    'usuario__nombre', Value(' '), 'usuario__apellido',
+                    output_field=CharField()
+                )
+            ).filter(nombre_completo__icontains=query)
 
         if not clientes.exists():
             mensaje = (
