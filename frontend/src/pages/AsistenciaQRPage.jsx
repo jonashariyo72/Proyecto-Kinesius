@@ -38,6 +38,9 @@ export default function AsistenciaQRPage() {
         if (err.response?.status === 401) {
           setMensaje('Tenés que iniciar sesión primero')
           setSubmensaje('Iniciá sesión en Kinescius y volvé a escanear el QR')
+        } else if (errorMsg.includes('kinesiólogo ya pasó')) {
+          setMensaje('El kinesiólogo ya pasó asistencia')
+          setSubmensaje('La asistencia de esta clase ya fue registrada manualmente')
         } else if (errorMsg.includes('seña pendiente')) {
           setMensaje('Tenés una seña pendiente')
           setSubmensaje('Hablá con el administrador para pagar el resto antes de ingresar')
