@@ -400,13 +400,17 @@ class AsistenciaQRView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if reserva.asistio:
+        if reserva.metodo_asistencia == 'MANUAL':
                     return Response(
-                        {'mensaje': 'Ya registraste tu asistencia para esta clase'},
-                        status=status.HTTP_200_OK
+                        {'error': 'El kinesiólogo ya pasó asistencia en esta clase'},
+                        status=status.HTTP_400_BAD_REQUEST
                     )
 
-                # Bloquear si pagó seña y no completó el pago
+        if reserva.asistio:
+            return Response(
+                {'mensaje': 'Ya registraste tu asistencia para esta clase'},
+                status=status.HTTP_200_OK
+           )
         from apps.pagos.models import PagoReserva
         try:
             pago = PagoReserva.objects.get(reserva=reserva)
