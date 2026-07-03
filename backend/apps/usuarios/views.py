@@ -889,16 +889,15 @@ class ClientesFiltradosView(APIView):
 
             if asistencia == 'asistio':
                 clientes = clientes.filter(
-                    reservas__fecha_reserva__date=fecha,
+                    reservas__clase__fecha_clase=fecha,
                     reservas__asistio=True,
                     reservas__estado='CONFIRMADA',
                 ).distinct()
-            else:  # no_asistio
+            else:  # no_asistio — anotados a una clase ese día pero no asistieron
                 clientes = clientes.filter(
-                    reservas__fecha_reserva__date=fecha,
+                    reservas__clase__fecha_clase=fecha,
+                    reservas__estado='CONFIRMADA',
                     reservas__asistio=False,
-                ).exclude(
-                    reservas__estado='CANCELADA'
                 ).distinct()
 
         data = [
