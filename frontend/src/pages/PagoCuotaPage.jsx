@@ -13,7 +13,7 @@ function FormularioTarjeta({ montoTotal, onConfirmar, onVolver, cargando, error 
   const [erroresTarjeta, setErroresTarjeta] = useState({})
 
   const TARJETAS_VALIDAS = [
-    's',
+    '5031755734530604',
     '4509953566233704',
     '5287338310253304',
     '4002768694395619',
@@ -200,36 +200,54 @@ export default function PagoCuotaPage({ onPagoExitoso, onCancelar }) {
         }
       }
 
-    async function handleConfirmarTarjeta(esValida) {
+   async function handleConfirmarTarjeta(esValida) {
       setStep('procesando')
       await new Promise(r => setTimeout(r, 1500))
 
       if (esValida === 'sin_fondos') {
-        setResultado({ exito: false, mensaje: 'La tarjeta no tiene fondos suficientes.' })
+        setResultado({
+          exito: false,
+          mensaje: 'La tarjeta no tiene fondos suficientes.'
+        })
         setStep('resultado')
         return
       }
 
       if (!esValida) {
-        setResultado({ exito: false, mensaje: 'Transacción no realizada. La tarjeta ingresada no es válida.' })
+        setResultado({
+          exito: false,
+          mensaje: 'Transacción no realizada. La tarjeta ingresada no es válida.'
+        })
         setStep('resultado')
         return
       }
 
-      // Tarjeta válida → aprobar directamente sin verificar con MP
       try {
-        const { data } = await api.post('/pagos/cuota/confirmar/', {
-          pago_cuota_id: pagoId,
-          aprobado_por_tarjeta: true,
+        await api.post('/pagos/cuota/confirmar/', {
+          pago_cuota_id: pagoId
         })
-        setResultado({ exito: true, mensaje: 'La cuota fue pagada con éxito.' })
+
+        setResultado({
+          exito: true,
+          mensaje: 'La cuota fue pagada con éxito.'
+        })
+
         setStep('resultado')
         onPagoExitoso?.()
+
       } catch (err) {
-        setResultado({ exito: false, mensaje: err.response?.data?.error ?? 'Error al confirmar el pago.' })
+        setResultado({
+          exito: false,
+          mensaje:
+            err.response?.data?.error ??
+            'Error al confirmar el pago.'
+        })
+
         setStep('resultado')
       }
     }
+
+
 
   async function handleVerificar() {
     const id = sessionStorage.getItem('mp_pago_cuota_id') ?? pagoId

@@ -17,7 +17,7 @@ def aprobar_pago_cuota(pago_cuota, id_transaccion=None):
 
     cliente = pago_cuota.cliente
 
-    print("ANTES")
+    
     print(cliente.id)
     print(cliente.es_abonado)
     print(cliente.fecha_venc_cuota)
@@ -25,7 +25,7 @@ def aprobar_pago_cuota(pago_cuota, id_transaccion=None):
     cliente.es_abonado = True
     cliente.fecha_venc_cuota = pago_cuota.periodo + relativedelta(months=1)
     cliente.save()
-    print(f"DESPUÉS: es_abonado={cliente.es_abonado}, fecha_venc={cliente.fecha_venc_cuota}")
+    
 
 
 

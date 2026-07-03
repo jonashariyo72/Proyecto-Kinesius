@@ -545,45 +545,49 @@ class ConfirmarPagoCuotaView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        pago_cuota_id = request.data.get('pago_cuota_id')
-        aprobado_por_tarjeta = request.data.get('aprobado_por_tarjeta', False)
+        pago_cuota_id = request.data.get("pago_cuota_id")
 
-        try:
-            pago_cuota = PagoCuota.objects.select_related('cliente').get(pk=pago_cuota_id)
-        except PagoCuota.DoesNotExist:
-            return Response({'error': 'Pago de cuota no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        cliente = getattr(request.user, 'cliente', None)
-        if not cliente or pago_cuota.cliente != cliente:
-            return Response({'error': 'No tenés permiso.'}, status=status.HTTP_403_FORBIDDEN)
-
-        if pago_cuota.estado != 'pendiente':
-            return Response({'error': f'Este pago ya fue procesado: {pago_cuota.get_estado_display()}.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Si viene de tarjeta simulada, aprobamos directo
-        if aprobado_por_tarjeta:
-            aprobar_pago_cuota(pago_cuota)
+        if not pago_cuota_id:
             return Response(
-                {'mensaje': 'Cuota aprobada correctamente.', 'pago': PagoCuotaSerializer(pago_cuota).data},
-                status=status.HTTP_200_OK
+                {"error": "Falta pago_cuota_id."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Si viene de MP, verificamos con MP
-        pago_mp = buscar_pago_por_external_reference(str(pago_cuota.id), pago_cuota.monto)
+        try:
+            pago_cuota = PagoCuota.objects.select_related("cliente").get(
+                pk=pago_cuota_id
+            )
+        except PagoCuota.DoesNotExist:
+            return Response(
+                {"error": "Pago de cuota no encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        if not pago_mp:
-            pago_cuota.delete()
-            return Response({'error': 'El pago no fue realizado en Mercado Pago.'}, status=status.HTTP_400_BAD_REQUEST)
+        cliente = getattr(request.user, "cliente", None)
 
-        if pago_mp.get('status') != 'approved':
-            pago_cuota.delete()
-            return Response({'error': 'El pago fue rechazado.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not cliente or pago_cuota.cliente != cliente:
+            return Response(
+                {"error": "No tenés permiso."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        aprobar_pago_cuota(pago_cuota, pago_mp['id'])
+        if pago_cuota.estado != "pendiente":
+            return Response(
+                {
+                    "error":
+                    f"Este pago ya fue procesado: {pago_cuota.get_estado_display()}."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        aprobar_pago_cuota(pago_cuota)
 
         return Response(
-            {'mensaje': 'Cuota aprobada correctamente.', 'pago': PagoCuotaSerializer(pago_cuota).data},
-            status=status.HTTP_200_OK
+            {
+                "mensaje": "Cuota aprobada correctamente.",
+                "pago": PagoCuotaSerializer(pago_cuota).data,
+            },
+            status=status.HTTP_200_OK,
         )
     
 class VerificarPagoCuotaMPView(APIView):
