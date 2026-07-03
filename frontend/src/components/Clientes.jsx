@@ -9,6 +9,27 @@ export default function Clientes() {
   const [cargando, setCargando]   = useState(true)
   const [error, setError]         = useState(null)
   const [busqueda, setBusqueda]   = useState('')
+  const [accionando, setAccionando] = useState(null) // id del cliente en proceso
+
+  const toggleSuspension = async (cliente) => {
+    setAccionando(cliente.id)
+    try {
+      const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+      const res = await fetch(`${API_URL}/api/usuarios/clientes/${cliente.id}/suspender/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${access}` },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setClientes(prev => prev.map(c =>
+          c.id === cliente.id
+            ? { ...c, suspendido: data.suspendido }
+            : c
+        ))
+      }
+    } catch { /* silencioso */ }
+    finally { setAccionando(null) }
+  }
 
   useEffect(() => {
   fetch(`${API}/api/usuarios/clientes/`, {
@@ -62,7 +83,7 @@ export default function Clientes() {
           <table style={s.table}>
             <thead>
               <tr>
-                {['Nombre', 'DNI', 'Email', 'Abonado', 'Estado'].map(h => (
+                {['Nombre', 'DNI', 'Email', 'Abonado', 'Estado', 'Acciones'].map(h => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -70,7 +91,7 @@ export default function Clientes() {
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#999' }}>
+                  <td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#999' }}>
                     No hay clientes registrados en el centro
                   </td>
                 </tr>
@@ -91,6 +112,18 @@ export default function Clientes() {
                       {c.suspendido
                         ? <span style={s.badgeSusp}>Suspendido</span>
                         : <span style={s.badgeActivo}>Activo</span>}
+                    </td>
+                    <td style={s.td}>
+                      <button
+                        style={c.suspendido ? s.btnLevantar : s.btnSuspender}
+                        onClick={() => toggleSuspension(c)}
+                        disabled={accionando === c.id}
+                      >
+                        {accionando === c.id
+                          ? '...'
+                          : c.suspendido ? 'Levantar suspensión' : 'Suspender'
+                        }
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -121,4 +154,6 @@ const s = {
   badgeOff:   { background: '#f5f5f5', color: '#888',    borderRadius: 20, padding: '3px 10px', fontWeight: 600, fontSize: 12 },
   badgeSusp:  { background: '#fdecea', color: '#c0392b', borderRadius: 20, padding: '3px 10px', fontWeight: 600, fontSize: 12 },
   badgeActivo:{ background: '#e8f5e9', color: '#2d6a2d', borderRadius: 20, padding: '3px 10px', fontWeight: 600, fontSize: 12 },
+  btnSuspender: { padding: '4px 12px', borderRadius: 6, border: '1px solid #c0392b', background: 'transparent', color: '#c0392b', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
+  btnLevantar:  { padding: '4px 12px', borderRadius: 6, border: '1px solid #2d6a2d', background: 'transparent', color: '#2d6a2d', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
 }

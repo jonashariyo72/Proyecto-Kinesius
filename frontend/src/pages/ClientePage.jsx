@@ -195,6 +195,7 @@ export default function ClientePage() {
   const [mensajeQueja, setMensajeQueja] = useState('')
   const [pagandoCuota, setPagandoCuota] = useState(false)
   const [esAbonado, setEsAbonado] = useState(false)
+  const [clasesAbono, setClasesAbono] = useState({ usadas: 0, total: 4 })
   // Filtros
   const [filtroTipo, setFiltroTipo]               = useState('')
   const [filtroDia, setFiltroDia]                 = useState('')
@@ -255,6 +256,12 @@ export default function ClientePage() {
       setPacienteId(res.data.id)
       setEsAbonado(res.data.es_abonado)
       setEstaSuspendido(res.data.suspendido)
+      if (res.data.es_abonado) {
+        setClasesAbono({
+          usadas: res.data.clases_abono_usadas ?? 0,
+          total:  res.data.clases_abono_total  ?? 4,
+        })
+      }
       setNombreUsuario(
         res.data.nombre ||
         res.data.usuario?.nombre ||
@@ -421,8 +428,13 @@ export default function ClientePage() {
             {nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hola'}
           </span>
           {esAbonado && (
-           <span style={s.badgeAbonado}>Abonado</span>
-           )}
+            <>
+              <span style={s.badgeAbonado}>Abonado</span>
+              <span style={s.badgeClasesAbono}>
+                {clasesAbono.total - clasesAbono.usadas}/{clasesAbono.total} clases disponibles
+              </span>
+            </>
+          )}
            {estaSuspendido && (
   <span style={s.badgeSuspendido}>Suspendido</span>
 )}
@@ -833,8 +845,13 @@ const s = {
   btnReservarCompacto: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#2d6a2d', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   fechaClase: { margin: 0, fontSize: 13, fontWeight: 800, color: '#1f3d1f' },
   badgeAbonado: {
-  marginLeft: 8, fontSize: 11, fontWeight: 700,
-  background: '#e8f5e9', color: '#2d6a2d',
-  padding: '3px 10px', borderRadius: 20, border: '1px solid #c3dfc3',
-},
+    marginLeft: 8, fontSize: 11, fontWeight: 700,
+    background: '#e8f5e9', color: '#2d6a2d',
+    padding: '3px 10px', borderRadius: 20, border: '1px solid #c3dfc3',
+  },
+  badgeClasesAbono: {
+    marginLeft: 6, fontSize: 11, fontWeight: 700,
+    background: '#fffbea', color: '#b8860b',
+    padding: '3px 10px', borderRadius: 20, border: '1px solid #f0d060',
+  },
 }

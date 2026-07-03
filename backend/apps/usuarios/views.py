@@ -391,6 +391,13 @@ class PerfilClienteView(APIView):
                 status=403
             )
 
+        from apps.pagos.pricing import contar_clases_abonadas_en_periodo, CLASES_INCLUIDAS_ABONO
+        from datetime import date
+
+        clases_usadas = 0
+        if cliente.es_abonado:
+            clases_usadas = contar_clases_abonadas_en_periodo(cliente, date.today())
+
         return Response({
             'id': cliente.id,
             'nombre': request.user.nombre,
@@ -400,6 +407,8 @@ class PerfilClienteView(APIView):
             'suspendido': cliente.suspendido,
             'fecha_venc_cuota': cliente.fecha_venc_cuota,
             'cant_cancelaciones': cliente.cant_cancelaciones,
+            'clases_abono_usadas': clases_usadas,
+            'clases_abono_total':  CLASES_INCLUIDAS_ABONO,
         })
 
     
@@ -958,3 +967,27 @@ class ListaClientesView(APIView):
         ]
  
         return Response(data, status=status.HTTP_200_OK)
+
+
+# Suspender / levantar suspensión de un cliente
+
+class SuspenderClienteView(APIView):
+    permission_classes = [EsAdministrador]
+
+    def post(self, request, cliente_id):
+        from django.utils import timezone as tz
+        try:
+            cliente = Cliente.objects.get(id=cliente_id, usuario__is_active=True)
+        except Cliente.DoesNotExist:
+            return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if cliente.suspendido:
+            cliente.suspendido       = False
+            cliente.fecha_suspension = None
+            cliente.save()
+            return Response({'mensaje': 'Suspensión levantada exitosamente.', 'suspendido': False})
+        else:
+            cliente.suspendido       = True
+            cliente.fecha_suspension = tz.now().date()
+            cliente.save()
+            return Response({'mensaje': 'Cliente suspendido exitosamente.', 'suspendido': True})
