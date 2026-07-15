@@ -306,7 +306,7 @@ class ListaKinesiologosView(APIView):
         data = [
             {
                 'id':              k.id,
-                'nombre':          k.usuario.nombre,
+                'nombre':          f'{k.usuario.nombre} {k.usuario.apellido}',
                 'apellido':        k.usuario.apellido,
                 'dni':             k.usuario.dni,
                 'email':           k.usuario.email,

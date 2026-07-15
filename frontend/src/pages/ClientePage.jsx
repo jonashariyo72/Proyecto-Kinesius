@@ -7,6 +7,7 @@ import PagoReservaPage from './PagoReservaPage'
 import { crearQueja } from '../services/quejaService'
 import PagoCuotaPage from './PagoCuotaPage'
 import HistorialEvolucion from "../components/HistorialEvolucion";
+import HistorialCancelaciones from "../components/HistorialCancelaciones";
 
 const DIAS = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
@@ -471,6 +472,16 @@ export default function ClientePage() {
           >
               Ver ficha de evolución
           </button>
+
+          <button
+            style={{
+              ...s.navBtn,
+              ...(seccion === "cancelaciones" ? s.navActivo : {})
+            }}
+            onClick={() => setSeccion("cancelaciones")}
+          >
+            Mis cancelaciones
+          </button>
           <button
                 style={{ ...s.navBtn, ...(seccion === 'cuota' ? s.navActivo : {}) }}
                 onClick={() => setPagandoCuota(true)}
@@ -689,6 +700,10 @@ export default function ClientePage() {
 
         {seccion === "historial" && (
             <HistorialEvolucion />
+        )}
+
+        {seccion === "cancelaciones" && (
+            <HistorialCancelaciones />
         )}
 
       </main>

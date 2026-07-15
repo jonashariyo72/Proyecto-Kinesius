@@ -833,12 +833,55 @@ class ListaEsperaViewSet(viewsets.ModelViewSet):
             reserva.cubierta_por_abono = True
             reserva.save()
 
-        return Response(
-            {
-                "reserva_id": reserva.id,
-                "monto_total": str(monto_total),
-                "cubierta_por_abono": cubierta_por_abono,
-            },
-            status=status.HTTP_201_CREATED
-        )
 
+
+# Historial de cancelaciones del cliente
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
+class HistorialCancelacionesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cliente = getattr(request.user, 'cliente', None)
+        if not cliente:
+            return Response({'error': 'No es cliente.'}, status=403)
+
+        reservas_canceladas = Reserva.objects.filter(
+            paciente=cliente,
+            estado='CANCELADA',
+            fecha_cancelacion__isnull=False,
+        ).select_related('clase', 'clase__kinesiologo__usuario').order_by('-fecha_cancelacion')
+
+        from django.utils.timezone import localtime
+
+        data = []
+        for r in reservas_canceladas:
+            monto_devuelto = 0
+            try:
+                monto_devuelto = float(r.pago.monto_devuelto) if r.pago.monto_devuelto else 0
+            except Exception:
+                pass
+
+            kine = None
+            if r.clase.kinesiologo:
+                u = r.clase.kinesiologo.usuario
+                kine = f'{u.nombre} {u.apellido}'
+
+            fecha_cancelacion_local = localtime(r.fecha_cancelacion) if r.fecha_cancelacion else None
+
+            data.append({
+                'id':                 r.id,
+                'fecha_cancelacion':  fecha_cancelacion_local.strftime('%d/%m/%Y %H:%M') if fecha_cancelacion_local else None,
+                'fecha_clase':        r.clase.fecha_clase.strftime('%d/%m/%Y') if r.clase.fecha_clase else None,
+                'dia_clase':          r.clase.get_dia_display(),
+                'hora_clase':         r.clase.hora_inicio.strftime('%H:%M'),
+                'tipo_clase':         r.clase.get_tipo_display(),
+                'kinesiologo':        kine,
+                'sala':               r.clase.sala,
+                'cancelacion_tardia': r.cancelacion_tardia,
+                'monto_devuelto':     monto_devuelto,
+            })
+
+        return Response(data)
