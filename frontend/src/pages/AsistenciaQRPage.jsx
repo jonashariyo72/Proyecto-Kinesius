@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/clasesService'
+import { useEffect, useState, useRef } from 'react'
 
 export default function AsistenciaQRPage() {
   const { token } = useParams()
@@ -8,8 +8,12 @@ export default function AsistenciaQRPage() {
   const [estado, setEstado] = useState('cargando')
   const [mensaje, setMensaje] = useState('Registrando asistencia...')
   const [submensaje, setSubmensaje] = useState('')
+  const yaRegistro = useRef(false)
 
   useEffect(() => {
+    if (yaRegistro.current) return
+    yaRegistro.current = true
+
     const accessToken = sessionStorage.getItem('access')
 
     // Si no hay token, redirigir al login
