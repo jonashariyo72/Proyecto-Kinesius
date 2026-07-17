@@ -594,17 +594,46 @@ class BajaUsuarioView(APIView):
 
                     clases_data = []
                     for c in clases_asignadas:
-                        # Kinesiólogos que YA tienen una clase activa ese mismo día y horario
+                        from datetime import datetime, timedelta
+
+                        # Calcular rango de la clase a reasignar
+                        duracion = c.duracion_minutos or 60
+                        inicio = datetime.combine(c.fecha_clase, c.hora_inicio)
+                        fin    = inicio + timedelta(minutes=duracion)
+                        hora_fin = fin.time()
+
+                        # Kinesiólogos ocupados: tienen alguna clase activa que se solapa
+                        # con el rango [hora_inicio, hora_fin) de la clase a reasignar
+                        # Dos clases se solapan si: inicio_A < fin_B AND fin_A > inicio_B
                         ocupados_ids = Clase.objects.filter(
-                            dia=c.dia,
-                            hora_inicio=c.hora_inicio,
+                            fecha_clase=c.fecha_clase,
                             activa=True,
-                        ).exclude(id=c.id).values_list('kinesiologo_id', flat=True)
+                        ).exclude(id=c.id).filter(
+                            # La otra clase empieza antes de que termine esta
+                            hora_inicio__lt=hora_fin,
+                        ).filter(
+                            # Y termina después de que empieza esta
+                            # hora_fin_otra = hora_inicio_otra + duracion_otra
+                            # No podemos calcular hora_fin directamente en SQL fácil,
+                            # así que usamos: hora_inicio_otra + duracion >= hora_inicio_esta
+                            # Lo aproximamos con: hora_inicio_otra >= hora_inicio_esta - max_duracion
+                            # Pero lo más correcto es filtrar en Python después
+                        ).values('kinesiologo_id', 'hora_inicio', 'duracion_minutos')
+
+                        ocupados_ids_final = set()
+                        for otra in ocupados_ids:
+                            if otra['kinesiologo_id'] is None:
+                                continue
+                            otra_inicio = datetime.combine(c.fecha_clase, otra['hora_inicio'])
+                            otra_fin    = otra_inicio + timedelta(minutes=otra['duracion_minutos'] or 60)
+                            # Solapan si: otra_inicio < fin AND otra_fin > inicio
+                            if otra_inicio < fin and otra_fin > inicio:
+                                ocupados_ids_final.add(otra['kinesiologo_id'])
 
                         disponibles = [
                             {'id': k.id, 'nombre': f'{k.usuario.nombre} {k.usuario.apellido}'}
                             for k in todos_los_kines
-                            if k.id not in ocupados_ids
+                            if k.id not in ocupados_ids_final
                         ]
 
                         clases_data.append({
@@ -653,17 +682,29 @@ class BajaUsuarioView(APIView):
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
-                    # Re-validar conflicto de horario (por seguridad ante condiciones de carrera)
-                    conflicto = Clase.objects.filter(
-                        dia=c.dia,
-                        hora_inicio=c.hora_inicio,
+                    # Re-validar conflicto de horario con solapamiento (condición de carrera)
+                    from datetime import datetime, timedelta
+                    duracion  = c.duracion_minutos or 60
+                    inicio    = datetime.combine(c.fecha_clase, c.hora_inicio)
+                    fin       = inicio + timedelta(minutes=duracion)
+
+                    clases_kine = Clase.objects.filter(
+                        fecha_clase=c.fecha_clase,
                         kinesiologo=nuevo_kine,
                         activa=True,
-                    ).exclude(id=c.id).exists()
+                    ).exclude(id=c.id).values('hora_inicio', 'duracion_minutos')
+
+                    conflicto = False
+                    for otra in clases_kine:
+                        otra_inicio = datetime.combine(c.fecha_clase, otra['hora_inicio'])
+                        otra_fin    = otra_inicio + timedelta(minutes=otra['duracion_minutos'] or 60)
+                        if otra_inicio < fin and otra_fin > inicio:
+                            conflicto = True
+                            break
 
                     if conflicto:
                         return Response(
-                            {'error': f'El kinesiólogo seleccionado ya tiene una clase asignada el {c.get_dia_display()} a las {c.hora_inicio}.'},
+                            {'error': f'El kinesiólogo seleccionado tiene una clase que se solapa con {c.get_tipo_display()} ({c.get_dia_display()} {c.hora_inicio}).'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
