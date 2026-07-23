@@ -16,17 +16,12 @@ Sistema web para la gestión de turnos, clases y pagos del centro de kinesiolog�
 - [Descripción general](#descripción-general)
 - [Tecnologías utilizadas](#tecnologías-utilizadas)
 - [Arquitectura del sistema](#arquitectura-del-sistema)
-- [Estructura del proyecto](#estructura-del-proyecto)
 - [Roles del sistema](#roles-del-sistema)
 - [Reglas de negocio](#reglas-de-negocio)
 - [Backend — Django REST](#backend--django-rest)
 - [Frontend — React + Vite](#frontend--react--vite)
 - [Autenticación y seguridad](#autenticación-y-seguridad)
 - [Configuración del entorno](#configuración-del-entorno)
-- [Variables de entorno](#variables-de-entorno)
-- [Endpoints de la API](#endpoints-de-la-api)
-- [Historias de usuario — Sprint 1](#historias-de-usuario--sprint-1)
-- [Estado actual del proyecto](#estado-actual-del-proyecto)
 
 ---
 
